@@ -4,6 +4,8 @@ FLEXNLP_VECTOR_SIZE = 16
 FLEXNLP_GBCORE_NUM_BANKS = 16
 FLEXNLP_GB_LARGE_BUF_BASE = '0x33500000'
 
+instr_cntr = 1
+
 def get_gb_large_ts_addr(idx, num_vector):
   # calculate the start address offset in the gbcore large buffer
   timestep_size = num_vector * FLEXNLP_VECTOR_SIZE
@@ -19,12 +21,17 @@ def gen_gbmm(asm, data_lib):
   addr = "0x33400010"
   data = hex(num_vector_in)
   mode = "W"
-
-  return [{
+  global instr_cntr
+  ret = [{
+    'instr_No.' : instr_cntr,
     'addr' : addr,
     'data' : data,
     'mode' : mode
   }]
+
+  instr_cntr += 1
+
+  return ret
 
 def gen_store_act(asm, data_lib):
   # gen_store_act format: gen_store_act tensor_idx, idx
@@ -39,16 +46,18 @@ def gen_store_act(asm, data_lib):
 
   start_addr = get_gb_large_ts_addr(idx, num_vector_in)
   gb_buf_row_size = FLEXNLP_GBCORE_NUM_BANKS * FLEXNLP_VECTOR_SIZE
- 
+  global instr_cntr 
   ret = []
   for v in range(num_vector_in):
     vector_data = data_lib[tensor_idx + '.' + str(v)]
     addr = start_addr + v*gb_buf_row_size + int(FLEXNLP_GB_LARGE_BUF_BASE, base=16)
     ret.append({
+      'instr_No.' : instr_cntr,
       'addr' : hex(addr),
       'data' : vector_data,
       'mode' : 'W'
     })
+    instr_cntr += 1
   
   return ret
 
@@ -66,19 +75,26 @@ def gen_maxp(asm, data_lib):
   #                if isinstance(asm['arg_0'], str) and asm['arg_0'].startswith('0x') \
   #                else int(asm['arg_0'])
   config_instr = hex(num_timestep) + num_vector_out[2:].zfill(4) + '1'.zfill(12)
+  global instr_cntr
   ret.append({
+    'instr_No.' : instr_cntr,
     'addr' : addr,
     'data' : config_instr,
     'mode' : 'W'
   })
 
+  instr_cntr += 1
+
   # second to trigger the maxpooling instruction
   addr = '0x33000020'
   ret.append({
+    'instr_No.' : instr_cntr,
     'addr' : addr,
     'data' : '0x0',
     'mode' : 'W'
   })
+
+  instr_cntr += 1
 
   return ret
 
