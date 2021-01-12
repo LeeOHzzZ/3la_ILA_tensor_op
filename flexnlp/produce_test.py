@@ -58,7 +58,7 @@ if __name__ == "__main__":
   asm_out_path = 'asm_test.json'
   data_out_path = 'data_lib_test.json'
   if len(sys.argv) > 2:
-    out_path = sys.argv[1]
+    asm_out_path = sys.argv[1]
     data_out_path = sys.argv[2]
   
   produce_asm(asm_out_path)

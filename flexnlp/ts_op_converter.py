@@ -130,7 +130,7 @@ def generate_ila_insns(asm, data_lib):
 
 def convert_ila_insns(asm_dump, data_dump):
   """
-  convert ILA assembly instructions into dram instructions
+  convert ILA assembly instructions into flexnlp-ila instructions
 
   Parameters
   ----------
