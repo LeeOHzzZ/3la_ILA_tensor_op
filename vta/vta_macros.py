@@ -3,7 +3,7 @@ This file contains parameters for vta-ila
 """
 VTA_INSTR_BITWIDTH = 128
 # instruction width
-VTA_OPCODE_WIDTH = 3
+VTA_OPCODE_BITWIDTH = 3
 
 # =====================
 # memory instruction
@@ -33,6 +33,20 @@ VTA_MEM_ID_INP = 2
 VTA_MEM_ID_ACC = 3
 # /*! Mem ID constant: output store buffer */
 VTA_MEM_ID_OUT = 4
+
+# ====================
+# GEMM
+# ====================
+VTA_GEMM_UOP_BEGIN_BITWIDTH = 13
+VTA_GEMM_UOP_END_BITWIDTH = 14
+VTA_GEMM_ITER_OUT_BITWIDTH = 14
+VTA_GEMM_ITER_IN_BITWIDTH = 14
+VTA_GEMM_DST_FACTOR_OUT_BITWIDTH = 11
+VTA_GEMM_DST_FACTOR_IN_BITWIDTH = 11
+VTA_GEMM_SRC_FACTOR_OUT_BITWIDTH = 11
+VTA_GEMM_SRC_FACTOR_IN_BITWIDTH = 11
+VTA_GEMM_WGT_FACTOR_OUT_BITWIDTH = 10
+VTA_GEMM_WGT_FACTOR_IN_BITWIDTH = 10
 
 # opcode type
 VTA_OPCODE_LOAD = 0
