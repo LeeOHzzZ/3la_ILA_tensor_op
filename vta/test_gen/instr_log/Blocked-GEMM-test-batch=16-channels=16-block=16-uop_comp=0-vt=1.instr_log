@@ -1,0 +1,99 @@
+=====================================================================================
+INFO - Blocked GEMM test: batch=16, channels=16, block=16, uop_comp=0, vt=1
+DEBUG - There are 7 instructions
+DEBUG - INSTRUCTION 0: LOAD UOP load_uop 
+	dep - pop prev: 0, pop next: 0, push prev: 0, push next: 0
+	dram_id:0x00000000
+ 	sram_id:0x0000
+	y_size:1
+ 	y_pad_0:0
+ 	y_pad_1:0
+	x_size:16
+ 	x_stride:16
+ 	x_pad_0:0
+ 	x_pad_1:0
+	 instruction_end
+DEBUG - INSTRUCTION 1: LOAD ACC load_bias 
+	dep - pop prev: 0, pop next: 0, push prev: 1, push next: 0
+	dram_id:0x00000000
+ 	sram_id:0x0000
+	y_size:16
+ 	y_pad_0:0
+ 	y_pad_1:0
+	x_size:1
+ 	x_stride:1
+ 	x_pad_0:0
+ 	x_pad_1:0
+	 instruction_end
+DEBUG - INSTRUCTION 2: LOAD WGT load_wgt 
+	dep - pop prev: 0, pop next: 1, push prev: 0, push next: 0
+	dram_id:0x00000000
+ 	sram_id:0x0000
+	y_size:1
+ 	y_pad_0:0
+ 	y_pad_1:0
+	x_size:1
+ 	x_stride:1
+ 	x_pad_0:0
+ 	x_pad_1:0
+	 instruction_end
+DEBUG - INSTRUCTION 3: LOAD INP load_inp 
+	dep - pop prev: 0, pop next: 0, push prev: 0, push next: 1
+	dram_id:0x00000000
+ 	sram_id:0x0000
+	y_size:16
+ 	y_pad_0:0
+ 	y_pad_1:0
+	x_size:1
+ 	x_stride:1
+ 	x_pad_0:0
+ 	x_pad_1:0
+	 instruction_end
+DEBUG - INSTRUCTION 4: gemm
+	dep - pop prev: 1, pop next: 0, push prev: 0, push next: 1
+	uop_bgn:0
+ 	uop_end:16
+	reset_f:0
+	iter_o:1
+ 	dst_fo:0
+ 	src_fo:0
+ 	wgt_fo:0
+	iter_i:1
+ 	dst_fi:0
+ 	src_fi:0
+ 	wgt_fi:0
+	 instruction_end
+DEBUG - INSTRUCTION 5: STORE ACC store_acc 
+	dep - pop prev: 1, pop next: 0, push prev: 1, push next: 0
+	dram_id:0x00000000
+ 	sram_id:0x0000
+	y_size:16
+ 	y_pad_0:0
+ 	y_pad_1:0
+	x_size:1
+ 	x_stride:1
+ 	x_pad_0:0
+ 	x_pad_1:0
+	 instruction_end
+DEBUG - INSTRUCTION 6: FINISH
+	dep - pop prev: 0, pop next: 1, push prev: 0, push next: 0
+	 instruction_end
+DEBUG - l2g_queue = 0, g2l_queue = 0
+DEBUG - s2g_queue = 0, g2s_queue = 0
+DEBUG - There are 16 micro-ops
+DEBUG - UOP 0: acc=0, inp= 0, wgt=0
+DEBUG - UOP 1: acc=1, inp= 1, wgt=0
+DEBUG - UOP 2: acc=2, inp= 2, wgt=0
+DEBUG - UOP 3: acc=3, inp= 3, wgt=0
+DEBUG - UOP 4: acc=4, inp= 4, wgt=0
+DEBUG - UOP 5: acc=5, inp= 5, wgt=0
+DEBUG - UOP 6: acc=6, inp= 6, wgt=0
+DEBUG - UOP 7: acc=7, inp= 7, wgt=0
+DEBUG - UOP 8: acc=8, inp= 8, wgt=0
+DEBUG - UOP 9: acc=9, inp= 9, wgt=0
+DEBUG - UOP 10: acc=10, inp= 10, wgt=0
+DEBUG - UOP 11: acc=11, inp= 11, wgt=0
+DEBUG - UOP 12: acc=12, inp= 12, wgt=0
+DEBUG - UOP 13: acc=13, inp= 13, wgt=0
+DEBUG - UOP 14: acc=14, inp= 14, wgt=0
+DEBUG - UOP 15: acc=15, inp= 15, wgt=0
