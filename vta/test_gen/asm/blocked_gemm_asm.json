@@ -1,0 +1,60 @@
+{
+    "asm": [
+        {
+            "name": "load_uop",
+            "arg_0": 0,
+            "arg_1": 0,
+            "arg_2": 16
+        },
+        {
+            "name": "load_bias",
+            "arg_0": 0,
+            "arg_1": 0,
+            "arg_2": 16,
+            "arg_3": 1,
+            "arg_4": 1
+        },
+        {
+            "name": "load_wgt",
+            "arg_0": 0,
+            "arg_1": 0,
+            "arg_2": 1,
+            "arg_3": 1,
+            "arg_4": 1
+        },
+        {
+            "name": "load_inp",
+            "arg_0": 0,
+            "arg_1": 0,
+            "arg_2": 16,
+            "arg_3": 1,
+            "arg_4": 1,
+            "arg_5": 0,
+            "arg_6": 0,
+            "arg_7": 0,
+            "arg_8": 0
+        },
+        {
+            "name": "gemm",
+            "arg_0": 0,
+            "arg_1": 0,
+            "arg_2": 16,
+            "arg_3": 1,
+            "arg_4": 1,
+            "arg_5": 0,
+            "arg_6": 0,
+            "arg_7": 0,
+            "arg_8": 0,
+            "arg_9": 0,
+            "arg_10": 0
+        },
+        {
+            "name": "store_acc",
+            "arg_0": 0,
+            "arg_1": 0,
+            "arg_2": 16,
+            "arg_3": 1,
+            "arg_4": 1
+        }
+    ]
+}

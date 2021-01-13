@@ -1,0 +1,143 @@
+{
+    "insns": [
+        {
+            "field_bytes": {
+                "asm_name": "load_uop",
+                "dram_base": "0x00000000",
+                "memory_type": "0x00",
+                "opcode": "0x00",
+                "pop_next_dep": "0x00",
+                "pop_prev_dep": "0x00",
+                "push_next_dep": "0x00",
+                "push_prev_dep": "0x00",
+                "sram_base": "0x0000",
+                "x_pad_0": "0x00",
+                "x_pad_1": "0x00",
+                "x_size": "0x0010",
+                "x_stride": "0x0010",
+                "y_pad_0": "0x00",
+                "y_pad_1": "0x00",
+                "y_size": "0x0001"
+            },
+            "index": 0
+        },
+        {
+            "field_bytes": {
+                "asm_name": "load_bias",
+                "dram_base": "0x00000000",
+                "memory_type": "0x03",
+                "opcode": "0x00",
+                "pop_next_dep": "0x00",
+                "pop_prev_dep": "0x00",
+                "push_next_dep": "0x00",
+                "push_prev_dep": "0x01",
+                "sram_base": "0x0000",
+                "x_pad_0": "0x00",
+                "x_pad_1": "0x00",
+                "x_size": "0x0001",
+                "x_stride": "0x0001",
+                "y_pad_0": "0x00",
+                "y_pad_1": "0x00",
+                "y_size": "0x0010"
+            },
+            "index": 1
+        },
+        {
+            "field_bytes": {
+                "asm_name": "load_wgt",
+                "dram_base": "0x00000000",
+                "memory_type": "0x01",
+                "opcode": "0x00",
+                "pop_next_dep": "0x01",
+                "pop_prev_dep": "0x00",
+                "push_next_dep": "0x00",
+                "push_prev_dep": "0x00",
+                "sram_base": "0x0000",
+                "x_pad_0": "0x00",
+                "x_pad_1": "0x00",
+                "x_size": "0x0001",
+                "x_stride": "0x0001",
+                "y_pad_0": "0x00",
+                "y_pad_1": "0x00",
+                "y_size": "0x0001"
+            },
+            "index": 2
+        },
+        {
+            "field_bytes": {
+                "asm_name": "load_inp",
+                "dram_base": "0x00000000",
+                "memory_type": "0x02",
+                "opcode": "0x00",
+                "pop_next_dep": "0x00",
+                "pop_prev_dep": "0x00",
+                "push_next_dep": "0x01",
+                "push_prev_dep": "0x00",
+                "sram_base": "0x0000",
+                "x_pad_0": "0x00",
+                "x_pad_1": "0x00",
+                "x_size": "0x0001",
+                "x_stride": "0x0001",
+                "y_pad_0": "0x00",
+                "y_pad_1": "0x00",
+                "y_size": "0x0010"
+            },
+            "index": 3
+        },
+        {
+            "field_bytes": {
+                "asm_name": "gemm",
+                "dst_factor_in": "0x0000",
+                "dst_factor_out": "0x0000",
+                "iter_in": "0x0001",
+                "iter_out": "0x0001",
+                "opcode": "0x02",
+                "pop_next_dep": "0x00",
+                "pop_prev_dep": "0x01",
+                "push_next_dep": "0x01",
+                "push_prev_dep": "0x00",
+                "reset_reg": "0x00",
+                "src_factor_in": "0x0000",
+                "src_factor_out": "0x0000",
+                "uop_bgn": "0x0000",
+                "uop_end": "0x0010",
+                "wgt_factor_in": "0x0000",
+                "wgt_factor_out": "0x0000"
+            },
+            "index": 4
+        },
+        {
+            "field_bytes": {
+                "asm_name": "store_acc",
+                "dram_base": "0x00000000",
+                "memory_type": "0x00",
+                "opcode": "0x01",
+                "pop_next_dep": "0x00",
+                "pop_prev_dep": "0x01",
+                "push_next_dep": "0x00",
+                "push_prev_dep": "0x01",
+                "sram_base": "0x0000",
+                "x_pad_0": "0x00",
+                "x_pad_1": "0x00",
+                "x_size": "0x0001",
+                "x_stride": "0x0001",
+                "y_pad_0": "0x00",
+                "y_pad_1": "0x00",
+                "y_size": "0x0010"
+            },
+            "index": 5
+        },
+        {
+            "field_bytes": {
+                "asm_name": "vta_finish",
+                "opcode": "0x03",
+                "pop_next_dep": "0x01",
+                "pop_prev_dep": "0x00",
+                "push_next_dep": "0x00",
+                "push_prev_dep": "0x00"
+            },
+            "index": 6
+        }
+    ],
+    "test name": "INFO - Blocked GEMM test: batch=16, channels=16, block=16, uop_comp=0, vt=1\n"
+}

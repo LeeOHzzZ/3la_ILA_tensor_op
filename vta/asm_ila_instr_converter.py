@@ -7,7 +7,7 @@ def prog_frag_gen(instr, mem_mode, mem_idx, data):
   global instr_cntr
   ret = [{
     'instr_No.' : instr_cntr,
-    'instr' : instr,
+    'instr_in' : instr,
     'mem_mode' : mem_mode,
     'mem_idx' : mem_idx,
     'mem_wgt_in' : data,
@@ -126,7 +126,7 @@ def gen_store_acc(asm):
   bin_instr_l = unused_bits * '0' + \
                 bin(asm['arg_1'])[2:].zfill(VTA_MEMOP_DRAM_ADDR_BITWIDTH) + \
                 bin(asm['arg_0'])[2:].zfill(VTA_MEMOP_SRAM_ADDR_BITWIDTH) + \
-                bin(VTA_MEM_ID_ACC)[2:].zfill(VTA_MEMOP_ID_BITWIDTH) + 4*'0' + \
+                VTA_MEMOP_ID_BITWIDTH * '0' + 4 * '0' + \
                 bin(VTA_OPCODE_STORE)[2:].zfill(VTA_OPCODE_BITWIDTH)
   bin_instr_h = bin(asm['arg_4'])[2:].zfill(VTA_MEMOP_STRIDE_BITWIDTH) + \
                 bin(asm['arg_3'])[2:].zfill(VTA_MEMOP_SIZE_BITWIDTH) + \

@@ -4,6 +4,8 @@ import json
 def parse_data(data_list):
   ret = []
   for l in data_list:
+    if 'output' in l:
+      continue
     if 'buf' in l:
       idx_l = l.find('[')
       idx_h = l.find(']')
@@ -16,6 +18,11 @@ def parse_data(data_list):
       idx = int(l[idx_l+1 : idx_h])  
       v_idx = l.find(':') + 2
       value = '0x' + l[v_idx:]
+      ret.append({
+        'name' : name,
+        'idx' : idx,
+        'value' : value
+      })
     if 'uop' in l:
       idx_l = l.find('No.')
       idx_h = l.find('\t')
@@ -23,11 +30,11 @@ def parse_data(data_list):
       v_idx = l.find(':') + 2
       value = '0x'+l[v_idx:]
       name = 'uop'
-    ret.append({
-      'name' : name,
-      'idx' : idx,
-      'value' : value
-    })
+      ret.append({
+        'name' : name,
+        'idx' : idx,
+        'value' : value
+      })
   ret = {'data_dump' : ret}
   return ret
 
@@ -43,5 +50,5 @@ if __name__ == "__main__":
   with open(dest_path, 'w') as fout:
     json.dump(parsed_data, fout, indent=4)
   
-  with open('raw_data_list.json', 'w') as fout:
-    json.dump(raw_data, fout, indent=4)
+  # with open('raw_data_list.json', 'w') as fout:
+  #   json.dump(raw_data, fout, indent=4)
