@@ -40,13 +40,13 @@ def gen_load_wgt(asm):
                 VTA_MEMOP_SRAM_ADDR_BITWIDTH - VTA_MEMOP_DRAM_ADDR_BITWIDTH
   # use this awkward translation because bitwidth of mem_id is 2...
   bin_instr_l = unused_bits * '0' + \
-                bin(asm['arg_1'])[2:].zfill(VTA_MEMOP_DRAM_ADDR_BITWIDTH) + \
-                bin(asm['arg_0'])[2:].zfill(VTA_MEMOP_SRAM_ADDR_BITWIDTH) + \
+                bin(asm['dram_id'])[2:].zfill(VTA_MEMOP_DRAM_ADDR_BITWIDTH) + \
+                bin(asm['sram_id'])[2:].zfill(VTA_MEMOP_SRAM_ADDR_BITWIDTH) + \
                 bin(VTA_MEM_ID_WGT)[2:].zfill(VTA_MEMOP_ID_BITWIDTH) + 4*'0' + \
                 bin(VTA_OPCODE_LOAD)[2:].zfill(VTA_OPCODE_BITWIDTH)
-  bin_instr_h = bin(asm['arg_4'])[2:].zfill(VTA_MEMOP_STRIDE_BITWIDTH) + \
-                bin(asm['arg_3'])[2:].zfill(VTA_MEMOP_SIZE_BITWIDTH) + \
-                bin(asm['arg_2'])[2:].zfill(VTA_MEMOP_SIZE_BITWIDTH)
+  bin_instr_h = bin(asm['x_stride'])[2:].zfill(VTA_MEMOP_STRIDE_BITWIDTH) + \
+                bin(asm['x_size'])[2:].zfill(VTA_MEMOP_SIZE_BITWIDTH) + \
+                bin(asm['y_size'])[2:].zfill(VTA_MEMOP_SIZE_BITWIDTH)
 
   instr = hex(int(bin_instr_h, base=2)) + \
           hex(int(bin_instr_l, base=2))[2:].zfill(int(VTA_INSTR_BITWIDTH/8))
@@ -61,17 +61,17 @@ def gen_load_inp(asm):
                 VTA_MEMOP_SRAM_ADDR_BITWIDTH - VTA_MEMOP_DRAM_ADDR_BITWIDTH
   
   bin_instr_l = unused_bits * '0' + \
-                bin(asm['arg_1'])[2:].zfill(VTA_MEMOP_DRAM_ADDR_BITWIDTH) + \
-                bin(asm['arg_0'])[2:].zfill(VTA_MEMOP_SRAM_ADDR_BITWIDTH) + \
+                bin(asm['dram_id'])[2:].zfill(VTA_MEMOP_DRAM_ADDR_BITWIDTH) + \
+                bin(asm['sram_id'])[2:].zfill(VTA_MEMOP_SRAM_ADDR_BITWIDTH) + \
                 bin(VTA_MEM_ID_INP)[2:].zfill(VTA_MEMOP_ID_BITWIDTH) + 4*'0' + \
                 bin(VTA_OPCODE_LOAD)[2:].zfill(VTA_OPCODE_BITWIDTH)
-  bin_instr_h = bin(asm['arg_8'])[2:].zfill(VTA_MEMOP_PAD_BITWIDTH) + \
-                bin(asm['arg_7'])[2:].zfill(VTA_MEMOP_PAD_BITWIDTH) + \
-                bin(asm['arg_6'])[2:].zfill(VTA_MEMOP_PAD_BITWIDTH) + \
-                bin(asm['arg_5'])[2:].zfill(VTA_MEMOP_PAD_BITWIDTH) + \
-                bin(asm['arg_4'])[2:].zfill(VTA_MEMOP_STRIDE_BITWIDTH) + \
-                bin(asm['arg_3'])[2:].zfill(VTA_MEMOP_SIZE_BITWIDTH) + \
-                bin(asm['arg_2'])[2:].zfill(VTA_MEMOP_SIZE_BITWIDTH)
+  bin_instr_h = bin(asm['x_pad1'])[2:].zfill(VTA_MEMOP_PAD_BITWIDTH) + \
+                bin(asm['x_pad0'])[2:].zfill(VTA_MEMOP_PAD_BITWIDTH) + \
+                bin(asm['y_pad1'])[2:].zfill(VTA_MEMOP_PAD_BITWIDTH) + \
+                bin(asm['y_pad0'])[2:].zfill(VTA_MEMOP_PAD_BITWIDTH) + \
+                bin(asm['x_stride'])[2:].zfill(VTA_MEMOP_STRIDE_BITWIDTH) + \
+                bin(asm['x_size'])[2:].zfill(VTA_MEMOP_SIZE_BITWIDTH) + \
+                bin(asm['y_size'])[2:].zfill(VTA_MEMOP_SIZE_BITWIDTH)
   instr = hex(int(bin_instr_h, base=2)) + \
           hex(int(bin_instr_l, base=2))[2:].zfill(int(VTA_INSTR_BITWIDTH/8))
 
@@ -85,13 +85,13 @@ def gen_load_bias(asm):
                 VTA_MEMOP_SRAM_ADDR_BITWIDTH - VTA_MEMOP_DRAM_ADDR_BITWIDTH
   # use this awkward translation because bitwidth of mem_id is 2...
   bin_instr_l = unused_bits * '0' + \
-                bin(asm['arg_1'])[2:].zfill(VTA_MEMOP_DRAM_ADDR_BITWIDTH) + \
-                bin(asm['arg_0'])[2:].zfill(VTA_MEMOP_SRAM_ADDR_BITWIDTH) + \
+                bin(asm['dram_id'])[2:].zfill(VTA_MEMOP_DRAM_ADDR_BITWIDTH) + \
+                bin(asm['sram_id'])[2:].zfill(VTA_MEMOP_SRAM_ADDR_BITWIDTH) + \
                 bin(VTA_MEM_ID_ACC)[2:].zfill(VTA_MEMOP_ID_BITWIDTH) + 4*'0' + \
                 bin(VTA_OPCODE_LOAD)[2:].zfill(VTA_OPCODE_BITWIDTH)
-  bin_instr_h = bin(asm['arg_4'])[2:].zfill(VTA_MEMOP_STRIDE_BITWIDTH) + \
-                bin(asm['arg_3'])[2:].zfill(VTA_MEMOP_SIZE_BITWIDTH) + \
-                bin(asm['arg_2'])[2:].zfill(VTA_MEMOP_SIZE_BITWIDTH)
+  bin_instr_h = bin(asm['x_stride'])[2:].zfill(VTA_MEMOP_STRIDE_BITWIDTH) + \
+                bin(asm['x_size'])[2:].zfill(VTA_MEMOP_SIZE_BITWIDTH) + \
+                bin(asm['y_size'])[2:].zfill(VTA_MEMOP_SIZE_BITWIDTH)
 
   instr = hex(int(bin_instr_h, base=2)) + \
           hex(int(bin_instr_l, base=2))[2:].zfill(int(VTA_INSTR_BITWIDTH/8))
@@ -105,11 +105,11 @@ def gen_load_uop(asm):
                 VTA_MEMOP_SRAM_ADDR_BITWIDTH - VTA_MEMOP_DRAM_ADDR_BITWIDTH
   
   bin_instr_l = unused_bits * '0' + \
-                bin(asm['arg_1'])[2:].zfill(VTA_MEMOP_DRAM_ADDR_BITWIDTH) + \
-                bin(asm['arg_0'])[2:].zfill(VTA_MEMOP_SRAM_ADDR_BITWIDTH) + \
+                bin(asm['dram_id'])[2:].zfill(VTA_MEMOP_DRAM_ADDR_BITWIDTH) + \
+                bin(asm['sram_id'])[2:].zfill(VTA_MEMOP_SRAM_ADDR_BITWIDTH) + \
                 bin(VTA_MEM_ID_UOP)[2:].zfill(VTA_MEMOP_ID_BITWIDTH) + 4*'0' + \
                 bin(VTA_OPCODE_LOAD)[2:].zfill(VTA_OPCODE_BITWIDTH)
-  bin_instr_h = bin(asm['arg_2'])[2:].zfill(VTA_MEMOP_SIZE_BITWIDTH) + \
+  bin_instr_h = bin(asm['x_size'])[2:].zfill(VTA_MEMOP_SIZE_BITWIDTH) + \
                 VTA_MEMOP_SIZE_BITWIDTH * '0'
   instr = hex(int(bin_instr_h, base=2)) + \
           hex(int(bin_instr_l, base=2))[2:].zfill(int(VTA_INSTR_BITWIDTH/8))
@@ -124,13 +124,13 @@ def gen_store_acc(asm):
                 VTA_MEMOP_SRAM_ADDR_BITWIDTH - VTA_MEMOP_DRAM_ADDR_BITWIDTH
   # use this awkward translation because bitwidth of mem_id is 2...
   bin_instr_l = unused_bits * '0' + \
-                bin(asm['arg_1'])[2:].zfill(VTA_MEMOP_DRAM_ADDR_BITWIDTH) + \
-                bin(asm['arg_0'])[2:].zfill(VTA_MEMOP_SRAM_ADDR_BITWIDTH) + \
+                bin(asm['dram_id'])[2:].zfill(VTA_MEMOP_DRAM_ADDR_BITWIDTH) + \
+                bin(asm['sram_id'])[2:].zfill(VTA_MEMOP_SRAM_ADDR_BITWIDTH) + \
                 VTA_MEMOP_ID_BITWIDTH * '0' + 4 * '0' + \
                 bin(VTA_OPCODE_STORE)[2:].zfill(VTA_OPCODE_BITWIDTH)
-  bin_instr_h = bin(asm['arg_4'])[2:].zfill(VTA_MEMOP_STRIDE_BITWIDTH) + \
-                bin(asm['arg_3'])[2:].zfill(VTA_MEMOP_SIZE_BITWIDTH) + \
-                bin(asm['arg_2'])[2:].zfill(VTA_MEMOP_SIZE_BITWIDTH)
+  bin_instr_h = bin(asm['x_stride'])[2:].zfill(VTA_MEMOP_STRIDE_BITWIDTH) + \
+                bin(asm['x_size'])[2:].zfill(VTA_MEMOP_SIZE_BITWIDTH) + \
+                bin(asm['y_size'])[2:].zfill(VTA_MEMOP_SIZE_BITWIDTH)
 
   instr = hex(int(bin_instr_h, base=2)) + \
           hex(int(bin_instr_l, base=2))[2:].zfill(int(VTA_INSTR_BITWIDTH/8))
@@ -145,18 +145,18 @@ def gen_gemm(asm):
      VTA_GEMM_UOP_END_BITWIDTH - VTA_GEMM_ITER_OUT_BITWIDTH - VTA_GEMM_ITER_IN_BITWIDTH)
   
   bin_instr_l = unused_bits * '0' + \
-                bin(asm['arg_4'])[2:].zfill(VTA_GEMM_ITER_IN_BITWIDTH) + \
-                bin(asm['arg_3'])[2:].zfill(VTA_GEMM_ITER_OUT_BITWIDTH) + \
-                bin(asm['arg_2'])[2:].zfill(VTA_GEMM_UOP_END_BITWIDTH) + \
-                bin(asm['arg_1'])[2:].zfill(VTA_GEMM_UOP_BEGIN_BITWIDTH) + \
-                bin(asm['arg_0'])[2:].zfill(1) + 4*'0' + \
+                bin(asm['iter_i'])[2:].zfill(VTA_GEMM_ITER_IN_BITWIDTH) + \
+                bin(asm['iter_o'])[2:].zfill(VTA_GEMM_ITER_OUT_BITWIDTH) + \
+                bin(asm['uop_end'])[2:].zfill(VTA_GEMM_UOP_END_BITWIDTH) + \
+                bin(asm['uop_bgn'])[2:].zfill(VTA_GEMM_UOP_BEGIN_BITWIDTH) + \
+                bin(asm['reset_f'])[2:].zfill(1) + 4*'0' + \
                 bin(VTA_OPCODE_GEMM)[2:].zfill(VTA_OPCODE_BITWIDTH)
-  bin_instr_h = bin(asm['arg_10'])[2:].zfill(VTA_GEMM_WGT_FACTOR_IN_BITWIDTH) + \
-                bin(asm['arg_9'])[2:].zfill(VTA_GEMM_WGT_FACTOR_OUT_BITWIDTH) + \
-                bin(asm['arg_8'])[2:].zfill(VTA_GEMM_SRC_FACTOR_IN_BITWIDTH) + \
-                bin(asm['arg_7'])[2:].zfill(VTA_GEMM_SRC_FACTOR_OUT_BITWIDTH) + \
-                bin(asm['arg_6'])[2:].zfill(VTA_GEMM_DST_FACTOR_IN_BITWIDTH) + \
-                bin(asm['arg_5'])[2:].zfill(VTA_GEMM_DST_FACTOR_OUT_BITWIDTH)
+  bin_instr_h = bin(asm['wgt_fi'])[2:].zfill(VTA_GEMM_WGT_FACTOR_IN_BITWIDTH) + \
+                bin(asm['wgt_fo'])[2:].zfill(VTA_GEMM_WGT_FACTOR_OUT_BITWIDTH) + \
+                bin(asm['src_fi'])[2:].zfill(VTA_GEMM_SRC_FACTOR_IN_BITWIDTH) + \
+                bin(asm['src_fo'])[2:].zfill(VTA_GEMM_SRC_FACTOR_OUT_BITWIDTH) + \
+                bin(asm['dst_fi'])[2:].zfill(VTA_GEMM_DST_FACTOR_IN_BITWIDTH) + \
+                bin(asm['dst_fo'])[2:].zfill(VTA_GEMM_DST_FACTOR_OUT_BITWIDTH)
   
   instr = hex(int(bin_instr_h, base=2)) + \
           hex(int(bin_instr_l, base=2))[2:].zfill(int(VTA_INSTR_BITWIDTH/8))

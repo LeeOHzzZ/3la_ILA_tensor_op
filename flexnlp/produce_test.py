@@ -6,19 +6,19 @@ def produce_asm(out_path):
   # set num_vector_in
   ila_asm.append({
     'name' : 'set_gbmm',
-    'arg_0' : 4
+    'num_vector_in' : 4
   })
   # some store instructions
   for i in range(4):
     ila_asm.append({
       'name' : 'store_act',
-      'arg_0' : 'ts_' + str(i),
-      'arg_1' : i
+      'timestep_idx' : 'ts_' + str(i),
+      'idx' : i
     })
   # maxp instruction
   ila_asm.append({
     'name' : 'maxp',
-    'arg_0' : 4
+    'num_ts' : 4
   })
   
   ila_asm = {'asm': ila_asm}

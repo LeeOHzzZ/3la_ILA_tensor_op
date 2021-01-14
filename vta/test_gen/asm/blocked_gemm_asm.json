@@ -2,59 +2,59 @@
     "asm": [
         {
             "name": "load_uop",
-            "arg_0": 0,
-            "arg_1": 0,
-            "arg_2": 16
+            "sram_id": 0,
+            "dram_id": 0,
+            "x_size": 16
         },
         {
             "name": "load_bias",
-            "arg_0": 0,
-            "arg_1": 0,
-            "arg_2": 16,
-            "arg_3": 1,
-            "arg_4": 1
+            "sram_id": 0,
+            "dram_id": 0,
+            "y_size": 16,
+            "x_size": 1,
+            "x_stride": 1
         },
         {
             "name": "load_wgt",
-            "arg_0": 0,
-            "arg_1": 0,
-            "arg_2": 1,
-            "arg_3": 1,
-            "arg_4": 1
+            "sram_id": 0,
+            "dram_id": 0,
+            "y_size": 1,
+            "x_size": 1,
+            "x_stride": 1
         },
         {
             "name": "load_inp",
-            "arg_0": 0,
-            "arg_1": 0,
-            "arg_2": 16,
-            "arg_3": 1,
-            "arg_4": 1,
-            "arg_5": 0,
-            "arg_6": 0,
-            "arg_7": 0,
-            "arg_8": 0
+            "sram_id": 0,
+            "dram_id": 0,
+            "y_size": 16,
+            "x_size": 1,
+            "x_stride": 1,
+            "y_pad0": 0,
+            "y_pad1": 0,
+            "x_pad0": 0,
+            "x_pad1": 0
         },
         {
             "name": "gemm",
-            "arg_0": 0,
-            "arg_1": 0,
-            "arg_2": 16,
-            "arg_3": 1,
-            "arg_4": 1,
-            "arg_5": 0,
-            "arg_6": 0,
-            "arg_7": 0,
-            "arg_8": 0,
-            "arg_9": 0,
-            "arg_10": 0
+            "reset_f": 0,
+            "uop_bgn": 0,
+            "uop_end": 16,
+            "iter_o": 1,
+            "iter_i": 1,
+            "dst_fo": 0,
+            "dst_fi": 0,
+            "src_fo": 0,
+            "src_fi": 0,
+            "wgt_fo": 0,
+            "wgt_fi": 0
         },
         {
             "name": "store_acc",
-            "arg_0": 0,
-            "arg_1": 0,
-            "arg_2": 16,
-            "arg_3": 1,
-            "arg_4": 1
+            "sram_id": 0,
+            "dram_id": 0,
+            "y_size": 16,
+            "x_size": 1,
+            "x_stride": 1
         }
     ]
 }

@@ -4,69 +4,69 @@ import json
 def gen_asm_load_uop(param):
   return [{
     'name' : 'load_uop',
-    'arg_0' : int(param['sram_base'], base=16),
-    'arg_1' : int(param['dram_base'], base=16),
-    'arg_2' : int(param['x_size'], base=16)
+    'sram_id' : int(param['sram_base'], base=16),
+    'dram_id' : int(param['dram_base'], base=16),
+    'x_size' : int(param['x_size'], base=16)
   }]
 
 def gen_asm_load_bias(param):
   return [{
     'name' : 'load_bias',
-    'arg_0' : int(param['sram_base'], base=16),
-    'arg_1' : int(param['dram_base'], base=16),
-    'arg_2' : int(param['y_size'], base=16),
-    'arg_3' : int(param['x_size'], base=16),
-    'arg_4' : int(param['x_stride'], base=16)
+    'sram_id' : int(param['sram_base'], base=16),
+    'dram_id' : int(param['dram_base'], base=16),
+    'y_size' : int(param['y_size'], base=16),
+    'x_size' : int(param['x_size'], base=16),
+    'x_stride' : int(param['x_stride'], base=16)
   }]
 
 def gen_asm_load_inp(param):
   return [{
     'name' : 'load_inp',
-    'arg_0' : int(param['sram_base'], base=16),
-    'arg_1' : int(param['dram_base'], base=16),
-    'arg_2' : int(param['y_size'], base=16),
-    'arg_3' : int(param['x_size'], base=16),
-    'arg_4' : int(param['x_stride'], base=16),
-    'arg_5' : int(param['y_pad_0'], base=16),
-    'arg_6' : int(param['y_pad_1'], base=16),
-    'arg_7' : int(param['x_pad_0'], base=16),
-    'arg_8' : int(param['x_pad_1'], base=16)
+    'sram_id' : int(param['sram_base'], base=16),
+    'dram_id' : int(param['dram_base'], base=16),
+    'y_size' : int(param['y_size'], base=16),
+    'x_size' : int(param['x_size'], base=16),
+    'x_stride' : int(param['x_stride'], base=16),
+    'y_pad0' : int(param['y_pad_0'], base=16),
+    'y_pad1' : int(param['y_pad_1'], base=16),
+    'x_pad0' : int(param['x_pad_0'], base=16),
+    'x_pad1' : int(param['x_pad_1'], base=16)
   }]
 
 def gen_asm_load_wgt(param):
   return [{
     'name' : 'load_wgt',
-    'arg_0' : int(param['sram_base'], base=16),
-    'arg_1' : int(param['dram_base'], base=16),
-    'arg_2' : int(param['y_size'], base=16),
-    'arg_3' : int(param['x_size'], base=16),
-    'arg_4' : int(param['x_stride'], base=16)
+    'sram_id' : int(param['sram_base'], base=16),
+    'dram_id' : int(param['dram_base'], base=16),
+    'y_size' : int(param['y_size'], base=16),
+    'x_size' : int(param['x_size'], base=16),
+    'x_stride' : int(param['x_stride'], base=16)
   }]
 
 def gen_asm_store_acc(param):
   return [{
     'name' : 'store_acc',
-    'arg_0' : int(param['sram_base'], base=16),
-    'arg_1' : int(param['dram_base'], base=16),
-    'arg_2' : int(param['y_size'], base=16),
-    'arg_3' : int(param['x_size'], base=16),
-    'arg_4' : int(param['x_stride'], base=16)
+    'sram_id' : int(param['sram_base'], base=16),
+    'dram_id' : int(param['dram_base'], base=16),
+    'y_size' : int(param['y_size'], base=16),
+    'x_size' : int(param['x_size'], base=16),
+    'x_stride' : int(param['x_stride'], base=16)
   }]
 
 def gen_asm_gemm(param):
   return [{
     'name' : 'gemm',
-    'arg_0' : int(param['reset_reg'], base=16),
-    'arg_1' : int(param['uop_bgn'], base=16), 
-    'arg_2' : int(param['uop_end'], base=16),
-    'arg_3' : int(param['iter_out'], base=16),
-    'arg_4' : int(param['iter_in'], base=16),
-    'arg_5' : int(param['dst_factor_out'], base=16),
-    'arg_6' : int(param['dst_factor_in'], base=16),
-    'arg_7' : int(param['src_factor_out'], base=16),
-    'arg_8' : int(param['src_factor_in'], base=16),
-    'arg_9' : int(param['wgt_factor_out'], base=16),
-    'arg_10' : int(param['wgt_factor_in'], base=16)
+    'reset_f' : int(param['reset_reg'], base=16),
+    'uop_bgn' : int(param['uop_bgn'], base=16), 
+    'uop_end' : int(param['uop_end'], base=16),
+    'iter_o' : int(param['iter_out'], base=16),
+    'iter_i' : int(param['iter_in'], base=16),
+    'dst_fo' : int(param['dst_factor_out'], base=16),
+    'dst_fi' : int(param['dst_factor_in'], base=16),
+    'src_fo' : int(param['src_factor_out'], base=16),
+    'src_fi' : int(param['src_factor_in'], base=16),
+    'wgt_fo' : int(param['wgt_factor_out'], base=16),
+    'wgt_fi' : int(param['wgt_factor_in'], base=16)
   }]
 
 def parse_instr_log(instr_log):

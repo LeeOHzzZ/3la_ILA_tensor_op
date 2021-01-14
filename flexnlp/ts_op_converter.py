@@ -17,7 +17,7 @@ def get_gb_large_ts_addr(idx, num_vector):
 def gen_gbmm(asm, data_lib):
   # gen_gbmm format
   # gen_gbmm num_vector_in
-  num_vector_in = asm['arg_0']
+  num_vector_in = asm['num_vector_in']
   addr = "0x33400010"
   data = hex(num_vector_in)
   mode = "W"
@@ -34,15 +34,15 @@ def gen_gbmm(asm, data_lib):
   return ret
 
 def gen_store_act(asm, data_lib):
-  # gen_store_act format: gen_store_act tensor_idx, idx
-  # tensor_idx: index of the tensor place holder
+  # gen_store_act format: gen_store_act timestep_idx, idx
+  # timestep_idx: index of the tensor place holder
   # idx: timestep index in the flexnlp GB large buffer
   num_vector_in = int(data_lib['gb_num_vector_in'], base=16)
   # assert num_vector_in is int, "gb_num_vector_in in data_lib is not int but " + str(type(num_vector_in))
  
-  tensor_idx = asm['arg_0']
+  tensor_idx = asm['timestep_idx']
   # idx = int(asm['arg_1'], base = 16)
-  idx = asm['arg_1']
+  idx = asm['idx']
 
   start_addr = get_gb_large_ts_addr(idx, num_vector_in)
   gb_buf_row_size = FLEXNLP_GBCORE_NUM_BANKS * FLEXNLP_VECTOR_SIZE
@@ -70,7 +70,7 @@ def gen_maxp(asm, data_lib):
   addr = '0x33800010'
   # num_vector_out == num_vector_in for maxpool
   num_vector_out = data_lib['gb_num_vector_in']
-  num_timestep = asm['arg_0']
+  num_timestep = asm['num_ts']
   # num_timestep = int(asm['arg_0'], base=16) \
   #                if isinstance(asm['arg_0'], str) and asm['arg_0'].startswith('0x') \
   #                else int(asm['arg_0'])
