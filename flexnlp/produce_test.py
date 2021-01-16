@@ -24,6 +24,8 @@ def produce_asm(out_path):
   ila_asm = {'asm': ila_asm}
   with open(out_path, 'w') as f:
     json.dump(ila_asm, f, indent=4)
+  
+  print("flexnlp-ila assembly has been dumped to " + out_path)
 
 def produce_data(out_path):
   data_lib = {}
@@ -53,6 +55,8 @@ def produce_data(out_path):
 
   with open(out_path, 'w') as f:
     json.dump(data_lib, f, indent=4)
+
+  print('sample data file has been dumped to ' + out_path)
 
 if __name__ == "__main__":
   asm_out_path = 'asm_test.json'

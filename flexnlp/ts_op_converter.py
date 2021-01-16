@@ -1,5 +1,16 @@
 import json
 
+"""
+Current supported flexnlp-ila assembly:
+
+1. set_gbmm [num_vector_in]
+    set up gb_memory_manager. Set up number of vectors in each input timestep
+2. store_act [ts_idx], [idx]
+    store activation/timestep [ts_idx] into entry index [idx] of gbcore large buffer
+3. maxp [num_ts]
+    perform maxpooling to the first [num_ts] timesteps in the gbcore large buffer
+"""
+
 FLEXNLP_VECTOR_SIZE = 16
 FLEXNLP_GBCORE_NUM_BANKS = 16
 FLEXNLP_GB_LARGE_BUF_BASE = '0x33500000'
@@ -181,5 +192,7 @@ def convert(asm_path, data_path, dest_path):
   
   with open(dest_path, 'w') as f:
     json.dump(prog_frag, f, indent=4)
+
+  print('flexnlp-ila program fragment has been dumped to ' + dest_path)
   
   

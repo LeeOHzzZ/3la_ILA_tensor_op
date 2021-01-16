@@ -19,7 +19,7 @@ def prog_frag_gen(instr, mem_mode, mem_idx, data):
   return ret
 
 def generate_vir_mem_insns(data):
-  assert data['name'] in ['input_buffer', 'weight_buffer', 'bias_buffer', 'uop'], \
+  assert data['name'] in ['input_buffer', 'weight_buffer', 'bias_buffer', 'uop_buffer'], \
           'not supported data dump'
   if data['name'] == 'input_buffer':
     mem_mode = 1
@@ -27,7 +27,7 @@ def generate_vir_mem_insns(data):
     mem_mode = 2
   elif data['name'] == 'bias_buffer':
     mem_mode = 3
-  elif data['name'] == 'uop':
+  elif data['name'] == 'uop_buffer':
     mem_mode = 4
 
   return prog_frag_gen('0x0', mem_mode, data['idx'], data['value'])
@@ -163,9 +163,36 @@ def gen_gemm(asm):
   
   return prog_frag_gen(instr, 0, 0, '0x0')
 
+def gen_alu(asm):
+  # assembly format: alu_* reset_f, uop_bgn, uop_end, iter_o, iter_i, dst_fo, dst_fi, src_fo, src_fi, alu_op, use_imm, imm
+  unused_bits = \
+      (VTA_INSTR_BITWIDTH/2 - VTA_OPCODE_BITWIDTH - 4 - 1 - VTA_ALU_UOP_BEGIN_BITWIDTH - \
+       VTA_ALU_UOP_END_BITWIDTH - VTA_ALU_ITER_OUT_BITWIDTH - VTA_ALU_ITER_IN_BITWIDTH)
+  
+  bin_instr_l = unused_bits * '0' + \
+                bin(asm['iter_i'])[2:].zfill(VTA_GEMM_ITER_IN_BITWIDTH) + \
+                bin(asm['iter_o'])[2:].zfill(VTA_GEMM_ITER_OUT_BITWIDTH) + \
+                bin(asm['uop_end'])[2:].zfill(VTA_GEMM_UOP_END_BITWIDTH) + \
+                bin(asm['uop_bgn'])[2:].zfill(VTA_GEMM_UOP_BEGIN_BITWIDTH) + \
+                bin(asm['reset_f'])[2:].zfill(1) + 4*'0' + \
+                bin(VTA_OPCODE_ALU)[2:].zfill(VTA_OPCODE_BITWIDTH)
+  bin_instr_h = bin(asm['imm'])[2:].zfill(VTA_ALU_IMM_BITWIDTH) + \
+                bin(asm['use_imm'])[2:].zfill(VTA_ALU_USE_IMM_FLAG_BITWIDTH) + \
+                bin(asm['alu_op'])[2:].zfill(VTA_ALU_OPCODE_BITWIDTH) + \
+                bin(asm['src_fi'])[2:].zfill(VTA_ALU_SRC_FACTOR_IN_BITWIDTH) + \
+                bin(asm['src_fo'])[2:].zfill(VTA_ALU_SRC_FACTOR_OUT_BITWIDTH) + \
+                bin(asm['dst_fi'])[2:].zfill(VTA_ALU_DST_FACTOR_IN_BITWIDTH) + \
+                bin(asm['dst_fo'])[2:].zfill(VTA_ALU_DST_FACTOR_OUT_BITWIDTH)
+  instr = hex(int(bin_instr_h, base=2)) + \
+          hex(int(bin_instr_l, base=2))[2:].zfill(int(VTA_INSTR_BITWIDTH/8))
+  
+  return prog_frag_gen(instr, 0, 0, '0x0')
+
+
 def generate_ila_insns(asm):
   asm_types = ['load_wgt', 'load_inp', 'load_bias', 'load_uop', 'store_acc']
   asm_types += ['gemm']
+  asm_types += ['alu_max', 'alu_min', 'alu_add', 'alu_shr']
   assert asm['name'] in asm_types, "not supported vta-ila assembly"
 
   # asm format: asm_name arg_0 [, arg_1, ...]
@@ -181,6 +208,8 @@ def generate_ila_insns(asm):
     return gen_store_acc(asm)
   if asm['name'] == 'gemm':
     return gen_gemm(asm)
+  if 'alu' in asm['name']:
+    return gen_alu(asm)
 
 def convert_ila_insns(asm_dump, data_dump):
   """
@@ -229,3 +258,5 @@ def convert(asm_path, data_path, dest_path):
 
   with open(dest_path, 'w') as fout:
     json.dump(prog_frag, fout, indent=4)
+
+  print('ila program fragment has been dumped to ' + dest_path)

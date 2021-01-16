@@ -101,3 +101,5 @@ if __name__ == "__main__":
 
   with open(dest_path, 'w') as fout:
     json.dump(asm_list, fout, indent=4)
+
+  print('assembly has been dumped to ' + dest_path)

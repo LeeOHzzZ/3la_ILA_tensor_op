@@ -29,7 +29,7 @@ def parse_data(data_list):
       idx = int(l[idx_l+3:idx_h-1])
       v_idx = l.find(':') + 2
       value = '0x'+l[v_idx:]
-      name = 'uop'
+      name = 'uop_buffer'
       ret.append({
         'name' : name,
         'idx' : idx,
@@ -49,6 +49,8 @@ if __name__ == "__main__":
   parsed_data = parse_data(raw_data)
   with open(dest_path, 'w') as fout:
     json.dump(parsed_data, fout, indent=4)
+  
+  print('data has been dumped to ' + dest_path)
   
   # with open('raw_data_list.json', 'w') as fout:
   #   json.dump(raw_data, fout, indent=4)
