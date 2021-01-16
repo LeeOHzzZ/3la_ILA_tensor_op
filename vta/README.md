@@ -25,12 +25,13 @@ VTA-ILA, modeling the HLS implementation of VTA [here](https://github.com/apache
 For example, vta-ila has a `virtual_bias_buffer` for holding bias data in a "vitural DRAM", a `acc_buffer`, modeling part of the SRAM in VTA, and each bias are 4 byte. Then `sram_id = 1` is the index for the second bias data in the `acc_buffer`, its physical memory address would be `base_addr_of(bias_buffer) + 4`. But we don't care about the physical memory address in the VTA-ILA model.
 
 - `load_bias [sram_id], [dram_id], [y_size], [x_size], [x_stride]`  
-VTA load bias tensor from external DRAM to its internal SRAM
+VTA load bias tensor from external DRAM to its internal SRAM (`acc_buffer`)
   - `sram_id`: index of the starting entry of the destination buffer in SRAM to load data to
   - `dram_id`: index of the starting entry of the source buffer in DRAM to load data from
   - `y_size`: number of tensor in y dimension of the whole matrix to be loaded
   - `x_size`: number of tensor in x dimension of the whole matrix to be loaded
-  - `x_stride`: number of tensor for stride in x dimension when loading
+  - `x_stride`: number of tensor for stride in x dimension when loading  
+
   ```assembly
   # example
     load_bias 1, 2, 5, 6, 1
@@ -39,7 +40,7 @@ VTA load bias tensor from external DRAM to its internal SRAM
   ```
 ***
 - `load_wgt [sram_id], [dram_id], [y_szie], [x_size], [x_stride]`
-VTA load weight tensors from external DRAM to its interal SRAM
+VTA load weight tensors from external DRAM to its interal SRAM (`wgt_buffer`)
   - `sram_id`: index of the starting entry of the destination buffer in SRAM to load data to
   - `dram_id`: index of the starting entry of the source buffer in DRAM to load data from
   - `y_size`: number of tensor in y dimension of the whole matrix to be loaded
@@ -47,7 +48,7 @@ VTA load weight tensors from external DRAM to its interal SRAM
   - `x_stride`: number of tensor for stride in x dimension when loading   
 ***
 - `load_inp [sram_id], [dram_id], [y_size], [x_size], [x_stride], [y_pad0], [y_pad1], [x_pad0], [x_pad1]`  
-VTA load input tensors from external DRAM to its interal SRAM
+VTA load input tensors from external DRAM to its interal SRAM (`inp_buffer`)
   - `sram_id`: index of the starting entry of the destination buffer in SRAM to load data to
   - `dram_id`: index of the starting entry of the source buffer in DRAM to load data from
   - `y_size`: number of tensor in y dimension of the whole matrix to be loaded
@@ -59,7 +60,7 @@ VTA load input tensors from external DRAM to its interal SRAM
   - `x_pad1`: padding after tensors in x dimension
 ***
 - `load_uop [sram_id], [dram_id], [x_size]`
-VTA load micro-op from external DRAM to its internal SRAM
+VTA load micro-op from external DRAM to its internal SRAM (`uop_buffer`)
   - `sram_id`: index of the starting entry of the destination buffer in SRAM to load data to
   - `dram_id`: index of the starting entry of the source buffer in DRAM to load data from
   - `x_size`: number of micro-ops to be loaded
@@ -76,7 +77,8 @@ Only one store instruction is supported in VTA, which is store the accumulation 
   - `x_stride`: number of tensor for stride in x dimension when storing
 
 ### GEMM
-[A short introduction on VTA GEMM instruction](https://tvm.apache.org/docs/vta/dev/hardware.html#compute-module)
+[A short introduction on VTA GEMM instruction](https://tvm.apache.org/docs/vta/dev/hardware.html#compute-module)  
+VTA GEMM will perform matrix-matrix/vector multiplication with inputs from `input_buffer` and weights from `weight_buffer` and accumulate the results in `acc_buffer`.  
 - `gemm [reset_f], [uop_bgn], [uop_end], [iter_o], [iter_i], [dst_fo], [dst_fi], [src_fo], [src_fi], [wgt_fo], [wgt_fi]`
   - `reset_f`: reset accumulator after multiplication
   - `uop_bgn`: begining idx of micro_op in the uop buffer for gemm
