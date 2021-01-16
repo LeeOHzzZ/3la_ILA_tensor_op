@@ -68,7 +68,7 @@ VTA load micro-op from external DRAM to its internal SRAM
 
 ### Store
 Only one store instruction is supported in VTA, which is store the accumulation results from VTA's SRAM back to DRAM. In VTA-ILA, `store_acc` will store results to the `virtual_output_buffer`
-- `store_acc sram_id, dram_id, y_size, x_size, x_stride`
+- `store_acc [sram_id], [dram_id], [y_size], [x_size], [x_stride]`
   - `sram_id`: index of the starting entry of the source buffer in SRAM to store data from
   - `dram_id`: index of the starting entry of the destination buffer in DRAM to store data to
   - `y_size`: number of tensor in y dimension of the whole matrix to be stored
@@ -77,7 +77,7 @@ Only one store instruction is supported in VTA, which is store the accumulation 
 
 ### GEMM
 [A short introduction on VTA GEMM instruction](https://tvm.apache.org/docs/vta/dev/hardware.html#compute-module)
-- `gemm reset_f, uop_bgn, uop_end, iter_o, iter_i, dst_fo, dst_fi, src_fo, src_fi, wgt_fo, wgt_fi`
+- `gemm [reset_f], [uop_bgn], [uop_end], [iter_o], [iter_i], [dst_fo], [dst_fi], [src_fo], [src_fi], [wgt_fo], [wgt_fi]`
   - `reset_f`: reset accumulator after multiplication
   - `uop_bgn`: begining idx of micro_op in the uop buffer for gemm
   - `uop_end`: ending idx of micro_op in the uop buffer for gemm
