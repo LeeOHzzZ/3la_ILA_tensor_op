@@ -1,4 +1,6 @@
-from ts_op_converter import convert
+# from ts_op_converter import convert
+from ts_to_asm_converter import convert as ts_asm_converter
+from asm_insns_converter import convert as asm_prog_frag_converter
 import sys
 
 if __name__ == '__main__':
@@ -8,4 +10,7 @@ if __name__ == '__main__':
   asm_path = sys.argv[1]
   data_path = sys.argv[2]
   dest_path = sys.argv[3]
-  convert(asm_path, data_path, dest_path)
+
+  ila_asm_path = 'intermediate_ila_asm.json'
+  ts_asm_converter(asm_path, data_path, ila_asm_path)
+  asm_prog_frag_converter(ila_asm_path, data_path, dest_path)

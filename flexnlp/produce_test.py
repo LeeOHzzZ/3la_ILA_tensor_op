@@ -25,13 +25,13 @@ def produce_asm(out_path):
   with open(out_path, 'w') as f:
     json.dump(ila_asm, f, indent=4)
   
-  print("flexnlp-ila assembly has been dumped to " + out_path)
+  print("flexnlp-ila tensor assembly has been dumped to " + out_path)
 
 def produce_data(out_path):
   data_lib = {}
   
   # set up the num_vector
-  data_lib['gb_num_vector_in'] = '0x4'
+  data_lib['gb_num_vector_in'] = 4
   # set up same random data
   data_lib['ts_0.0'] = '0x3C5ACB7A2CC234751CA3281B0231DB4'
   data_lib['ts_0.1'] = '0x0E4011C1A9032FBA813D3DC01A38A9AD'
