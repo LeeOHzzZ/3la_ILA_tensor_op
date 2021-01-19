@@ -31,6 +31,53 @@ def gen_read_v(asm):
   return produce_insn(asm['addr'], '0x0', 'R')
 
 # -------------------------------------------
+# PE instructions
+# -------------------------------------------
+def gen_pe_cfg_rnn_layer_sizing(asm):
+  # assembly: pe_cfg_rnn_layer_sizing [pe_idx], [is_zero], [is_cluster], [is_bias], [num_mngr], [num_v_out]
+  assert asm['pe_idx'] in range(4), 'not supported pe_idx for gen_pe_cfg_rnn_layer_sizing'
+  addr = hex(0x34000000 + asm['pe_idx'] * 0x01000000 + 0x00400010)
+  instr = hex(asm['num_v_out']) + hex(asm['num_mngr'])[2:].zfill(2) + \
+          hex(asm['is_bias'])[2:].zfill(2) + hex(asm['is_cluster'])[2:].zfill(2) + \
+          hex(asm['is_zero'])[2:].zfill(2) + '01'
+  return produce_insn(addr, instr, 'W')
+
+def gen_pe_cfg_mngr(asm):
+  # assembly: pe_cfg_mngr [pe_idx], [mngr_idx], [is_zero], [adpbias_wgt], [adpbias_bias], [adpbias_inp], [num_v_in], [base_wgt], [base_bias], [base_inp]
+  assert asm['pe_idx'] in range(4), 'not supported pe_idx for gen_pe_cfg_mngr'
+  assert asm['mngr_idx'] in range(1,3), 'not supported mngr_idx for pe_cfg_mngr'
+  addr = hex(0x34000000 + asm['pe_idx'] * 0x01000000 + 0x00400000 + asm['mngr_idx'] * 0x20)
+  instr = hex(asm['base_inp']) + hex(asm['base_bias'])[2:].zfill(4) + hex(asm['base_wgt'])[2:].zfill(4) + \
+          hex(asm['num_v_in'])[2:].zfill(4) + \
+          hex(asm['adpbias_inp'])[2:].zfill(2) + hex(asm['adpbias_bias'])[2:].zfill(2) + \
+          hex(asm['adpbias_wgt'])[2:].zfill(2) + hex(asm['is_zero']).zfill(2)
+  return produce_insn(addr, instr, 'W')
+
+def gen_pe_cfg_act_mngr(asm):
+  # assembly: pe_cfg_act_mngr [pe_idx], [is_zero], [adpfloat_bias], [num_insn], [num_v_out], [buf_base], [out_base]
+  assert asm['pe_idx'] in range(4), 'not supported pe_idx for gen_pe_cfg_act_mngr'
+  addr = hex(0x34000000 + asm['pe_idx']*0x01000000 + 0x00800010)
+  instr = hex(asm['out_base']) + hex(asm['buf_base'])[2:].zfill(4) + \
+          hex(asm['num_v_out'])[2:].zfill(4) + hex(asm['num_insn'])[2:].zfill(2) + \
+          hex(asm['adpfloat_bias'])[2:].zfill(2) + hex(asm['is_zero'])[2:].zfill(2) + '01'
+  return produce_insn(addr, instr, 'W')
+
+def gen_pe_cfg_act_v(asm):
+  # assembly: pe_cfg_act_v [pe_idx], [v_idx], [insn_0], ..., [insn_15]
+  # assumption: insn are all hex string
+  assert asm['pe_idx'] in range(4), 'not supported pe_idx for gen_pe_cfg_act_v'
+  assert asm['v_idx'] in range(1,3), 'not supported v_idx for gen_pe_cfg_act_v'
+  addr = hex(0x34000000 + asm['pe_idx']*0x01000000 + 0x00800000 + 0x10*(asm['v_idx']+1))
+  for i in range(15):
+    key = 'insn_' + str(i)
+    instr = ''
+    if key in asm:
+      instr = asm['key'][2:].zfill(2) + instr
+    else:
+      instr = 2*'0' + instr
+  return produce_insn(addr, instr, 'W')
+
+# -------------------------------------------
 # memory manager configuration instructions
 # -------------------------------------------
 def gen_cfg_mmngr_gb_large(asm):
@@ -89,19 +136,44 @@ def gen_cfg_ly_reduce(asm):
 
   return produce_insn(addr, instr, 'W') 
 
+def gen_cfg_gb_ctrl(asm):
+  # assembly: cfg_gb_ctrl [mode], [is_rnn], [mem_id_i], [mem_id_o], [num_v_i], [num_v_o], [num_ts]
+  # assumptions: all input types are integer
+  addr = '0x33700010'
+  num_v_field = hex(asm['num_v_o'])[2:].zfill(2) + hex(asm['num_v_i'])[2:].zfill(2)
+  mem_id_field = hex(asm['mem_id_o'])[2:].zfill(2) + hex(asm['mem_id_i'])[2:].zfill(2)
+  rnn_flag_field = hex(asm['is_rnn'])[2:].zfill(4)
+  mode_field = hex(asm['mode'])[2:].zfill(2)
+  valid_field = '01'
+  instr = hex(asm['num_ts']) + num_v_field + mem_id_field + rnn_flag_field + mode_field + valid_field
+
+  return produce_insn(addr, instr, 'W')
 
 # -------------------------------------------
 # function trigger instructions
 # -------------------------------------------
-def gen_start_ly_reduces():
+def gen_start(asm):
   # assembly: start_ly_reduce
-  return produce_insn('0x33000020', '0x1', 'W')
+  assert asm['op'] in (1,2,3,4,5), "unsupported op function trigger"
+  addr = {
+    1 : '0x33000010',
+    2 : '0x33000020',
+    3 : '0x33000030',
+    4 : '0x33000040',
+    5 : '0x33000050'
+  }.get(asm['op'])
+  return produce_insn(addr, '0x1', 'W')
 
+# --------------------------------------------
+# --------------------------------------------
 def generate_ila_insns(asm, data_lib):
   asm_types = ['write_v', 'read_v']
+  asm_types += ['pe_cfg_rnn_layer_sizing', 'pe_cfg_mngr']
+  asm_types += ['pe_cfg_act_mngr', 'cfg_act_v']
   asm_types += ['cfg_mmngr_gb_large', 'cfg_mmngr_gb_small']
-  asm_types += ['cfg_ly_reduce']
-  asm_types += ['start_ly_reduce']
+  asm_types += ['cfg_ly_reduce', 'cfg_gb_ctrl']
+  asm_types += ['start']
+    
   assert asm['name'] in asm_types, \
     "'" + asm['name'] + "' is not a supported flexnlp-ila assembly"
 
@@ -109,6 +181,16 @@ def generate_ila_insns(asm, data_lib):
     return gen_write_v(asm, data_lib)
   if asm['name'] == 'read_v':
     return gen_read_v(asm)
+  
+  # pe instructions
+  if asm['name'] == 'pe_cfg_rnn_layer_sizing':
+    return gen_pe_cfg_rnn_layer_sizing(asm)
+  if asm['name'] == 'pe_cfg_mngr':
+    return gen_pe_cfg_mngr(asm)
+  if asm['name'] == 'pe_cfg_act_mngr':
+    return gen_pe_cfg_act_mngr(asm)
+  if asm['name'] == 'pe_cfg_act_v':
+    return gen_pe_cfg_act_v(asm)
   
   # memory manager instructions
   if asm['name'] == 'cfg_mmngr_gb_large':
@@ -119,10 +201,13 @@ def generate_ila_insns(asm, data_lib):
   # function configuration instructions
   if asm['name'] == 'cfg_ly_reduce':
     return gen_cfg_ly_reduce(asm)
+  if asm['name'] == 'cfg_gb_ctrl':
+    return gen_cfg_gb_ctrl(asm)
 
   # function trigger instructions
-  if asm['name'] == 'start_ly_reduce':
-    return gen_start_ly_reduces()
+  if asm['name'] == 'start':
+    return gen_start(asm)
+  
   
 
 

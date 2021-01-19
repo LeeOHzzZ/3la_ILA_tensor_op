@@ -70,7 +70,8 @@ def gen_maxp(asm, data_lib):
   })
 
   ret.append({
-    'name' : 'start_ly_reduce'
+    'name' : 'start',
+    'op' : 2
   })
 
   return ret
