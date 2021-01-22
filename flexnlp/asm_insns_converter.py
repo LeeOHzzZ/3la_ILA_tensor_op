@@ -36,6 +36,7 @@ def gen_read_v(asm):
 def gen_pe_cfg_rnn_layer_sizing(asm):
   # assembly: pe_cfg_rnn_layer_sizing [pe_idx], [is_zero], [is_cluster], [is_bias], [num_mngr], [num_v_out]
   assert asm['pe_idx'] in range(4), 'not supported pe_idx for gen_pe_cfg_rnn_layer_sizing'
+  assert len(asm) == 7, 'incorrect arguments for pe_cfg_rnn_layer_sizing'
   addr = hex(0x34000000 + asm['pe_idx'] * 0x01000000 + 0x00400010)
   instr = hex(asm['num_v_out']) + hex(asm['num_mngr'])[2:].zfill(2) + \
           hex(asm['is_bias'])[2:].zfill(2) + hex(asm['is_cluster'])[2:].zfill(2) + \
@@ -46,11 +47,12 @@ def gen_pe_cfg_mngr(asm):
   # assembly: pe_cfg_mngr [pe_idx], [mngr_idx], [is_zero], [adpbias_wgt], [adpbias_bias], [adpbias_inp], [num_v_in], [base_wgt], [base_bias], [base_inp]
   assert asm['pe_idx'] in range(4), 'not supported pe_idx for gen_pe_cfg_mngr'
   assert asm['mngr_idx'] in range(1,3), 'not supported mngr_idx for pe_cfg_mngr'
+  assert len(asm) == 11, "incorrect arguments for pe_cfg_mngr"
   addr = hex(0x34000000 + asm['pe_idx'] * 0x01000000 + 0x00400000 + asm['mngr_idx'] * 0x20)
   instr = hex(asm['base_inp']) + hex(asm['base_bias'])[2:].zfill(4) + hex(asm['base_wgt'])[2:].zfill(4) + \
           hex(asm['num_v_in'])[2:].zfill(4) + \
           hex(asm['adpbias_inp'])[2:].zfill(2) + hex(asm['adpbias_bias'])[2:].zfill(2) + \
-          hex(asm['adpbias_wgt'])[2:].zfill(2) + hex(asm['is_zero']).zfill(2)
+          hex(asm['adpbias_wgt'])[2:].zfill(2) + hex(asm['is_zero'])[2:].zfill(2)
   return produce_insn(addr, instr, 'W')
 
 def gen_pe_cfg_act_mngr(asm):
@@ -68,11 +70,11 @@ def gen_pe_cfg_act_v(asm):
   assert asm['pe_idx'] in range(4), 'not supported pe_idx for gen_pe_cfg_act_v'
   assert asm['v_idx'] in range(1,3), 'not supported v_idx for gen_pe_cfg_act_v'
   addr = hex(0x34000000 + asm['pe_idx']*0x01000000 + 0x00800000 + 0x10*(asm['v_idx']+1))
+  instr = ''
   for i in range(15):
     key = 'insn_' + str(i)
-    instr = ''
     if key in asm:
-      instr = asm['key'][2:].zfill(2) + instr
+      instr = asm[key][2:].zfill(2) + instr
     else:
       instr = 2*'0' + instr
   return produce_insn(addr, instr, 'W')
@@ -153,7 +155,7 @@ def gen_cfg_gb_ctrl(asm):
 # function trigger instructions
 # -------------------------------------------
 def gen_start(asm):
-  # assembly: start_ly_reduce
+  # assembly: start [op]
   assert asm['op'] in (1,2,3,4,5), "unsupported op function trigger"
   addr = {
     1 : '0x33000010',
@@ -169,7 +171,7 @@ def gen_start(asm):
 def generate_ila_insns(asm, data_lib):
   asm_types = ['write_v', 'read_v']
   asm_types += ['pe_cfg_rnn_layer_sizing', 'pe_cfg_mngr']
-  asm_types += ['pe_cfg_act_mngr', 'cfg_act_v']
+  asm_types += ['pe_cfg_act_mngr', 'pe_cfg_act_v']
   asm_types += ['cfg_mmngr_gb_large', 'cfg_mmngr_gb_small']
   asm_types += ['cfg_ly_reduce', 'cfg_gb_ctrl']
   asm_types += ['start']
@@ -207,9 +209,6 @@ def generate_ila_insns(asm, data_lib):
   # function trigger instructions
   if asm['name'] == 'start':
     return gen_start(asm)
-  
-  
-
 
 def convert_ila_insns(asm_dump, data_dump):
   asm_list = asm_dump['asm']

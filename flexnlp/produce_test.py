@@ -3,11 +3,6 @@ import sys
 
 def produce_asm(out_path):
   ila_asm = []
-  # set num_vector_in
-  ila_asm.append({
-    'name' : 'set_gbmm',
-    'num_vector_in' : 4
-  })
   # some store instructions
   for i in range(4):
     ila_asm.append({
@@ -20,6 +15,22 @@ def produce_asm(out_path):
     'name' : 'maxp',
     'num_ts' : 4
   })
+
+  # ila_asm.append({
+  #   'name' : 'store_wgt',
+  #   'wgt_idx' : 'w0'
+  # })
+
+  # ila_asm.append({
+  #   'name' : 'store_bias',
+  #   'bias_idx' : 'b0'
+  # })
+
+  # ila_asm.append({
+  #   'name' : 'linear_layer',
+  #   'num_ts' : 10,
+  #   'is_bias' : 1
+  # })
   
   ila_asm = {'asm': ila_asm}
   with open(out_path, 'w') as f:
@@ -30,9 +41,18 @@ def produce_asm(out_path):
 def produce_data(out_path):
   data_lib = {}
   
-  # set up the num_vector
+  # # set up the num_vector
   data_lib['gb_num_vector_in'] = 4
-  # set up same random data
+  # data_lib['gb_num_vector_in'] = 16
+  # data_lib['gb_num_vector_out'] = 4
+  # data_lib['adpbias_wgt'] = 3
+  # data_lib['adpbias_bias'] = 3
+  # data_lib['adpbias_inp'] = 3
+  # data_lib['adpbias_pe_act'] = 4
+  # set up wgt tile number
+  # data_lib['w0_num_tile'] = 32
+
+  # set up some random data
   data_lib['ts_0.0'] = '0x3C5ACB7A2CC234751CA3281B0231DB4'
   data_lib['ts_0.1'] = '0x0E4011C1A9032FBA813D3DC01A38A9AD'
   data_lib['ts_0.2'] = '0x0A2C2B4B5A9A04AAC3FD99843ABB93896'
@@ -52,6 +72,7 @@ def produce_data(out_path):
   data_lib['ts_3.1'] = '0x295CC8351739D1244A52B8374CB3B5'
   data_lib['ts_3.2'] = '0x0B5DEA101D8B753454EF2C351AC185643'
   data_lib['ts_3.3'] = '0x54D18ADB1C2664E13B4BC5BB01CB00C4'
+
 
   with open(out_path, 'w') as f:
     json.dump(data_lib, f, indent=4)
