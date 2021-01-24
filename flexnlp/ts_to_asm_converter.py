@@ -10,6 +10,8 @@ GB_LAYER_REDUCE_START = 2
 GB_LAYER_NORM_START = 3
 
 instr_cntr = 1
+# this base address is byte level
+gb_large_buf_mem_base_1 = 0
 
 # -----------------------------------------
 # Helper function
@@ -23,7 +25,7 @@ def get_gb_large_v_addr(idx, num_vector, vector_idx):
         (idx%FLEXNLP_GBCORE_NUM_BANKS) * FLEXNLP_VECTOR_SIZE + \
         gb_buf_row_size * vector_idx
   out += int(FLEXNLP_GB_LARGE_BUF_BASE, base=16)
-  return hex(out)
+  return out
 
 def get_pe_base_bias_v(num_v):
   # get bias base address in pe input buffer (vector level address)
@@ -55,7 +57,7 @@ def gen_store_act(asm, data_lib):
 
   for v in range(num_vector_in):
     v_name = tensor_idx + '.' + str(v)
-    addr = get_gb_large_v_addr(idx, num_vector_in, v)
+    addr = hex(get_gb_large_v_addr(idx, num_vector_in, v))
     ret.append({
       'name' : 'write_v',
       'vector_name' : v_name,
@@ -90,7 +92,7 @@ def gen_store_wgt(asm, data_lib):
 
 def gen_store_bias(asm, data_lib):
   # format: store_bias [bias_idx]
-  # [bias_idx]: bias vector symbol
+  # [bias_idx]: string, bias vector symbol
   # description:
   #   Store bias into PE's input buffer, divided into 4 segments
   # assumption:
@@ -116,6 +118,26 @@ def gen_store_bias(asm, data_lib):
       })
   return ret
 
+def gen_load_act(asm, data_lib):
+  # format: load_act [mem_idx], [ts_idx]
+  # [mem_idx]: int, memory_idx in the FlexNLP large buffer
+  # [ts_idx]: int, timestep index to be loaded
+  # description:
+  #   load activations from flexnlp gb_large_buffer
+  # assumption:
+  #   hard to implement return tensor symbol
+  num_v_out = data_lib['gb_num_vector_out']
+  global gb_large_buf_mem_base_1
+  ret = []
+  for v in range(num_v_out):
+    addr = get_gb_large_v_addr(asm['ts_idx'], num_v_out, v)
+    if asm['mem_idx'] == 1:
+      addr += gb_large_buf_mem_base_1
+    ret.append({
+      'name' : 'read_v',
+      'addr' : hex(addr)
+    })
+  return ret
 # ------------------------------------------
 # op assembly
 # ------------------------------------------
@@ -211,6 +233,11 @@ def gen_linear_layer(asm, data_lib):
   # set up gb memory manager
   num_ts = asm['num_ts']
   base_addr_1 = int(num_ts/16 + 2) * 16 * gb_num_v_in # this value is vector level
+  # temporarily set this index as global variable.
+  # should come up with better solution
+  global gb_large_buf_mem_base_1 
+  gb_large_buf_mem_base_1 = base_addr_1 * 16
+
   ret.append(
     gen_gb_mngr_large(0, gb_num_v_in, base_addr_1, gb_num_v_out)
   )
@@ -251,7 +278,7 @@ def generate_ila_insns(asm, data_lib):
   List of ILA instructions corresponding to current
   ILA assembly
   """
-  asm_types = ['store_act', 'store_wgt', 'store_bias']
+  asm_types = ['store_act', 'store_wgt', 'store_bias', 'load_act']
   asm_types += ['maxp', 'linear_layer']
   assert asm['name'] in asm_types, "not supported ILA assembly"
 
@@ -262,6 +289,8 @@ def generate_ila_insns(asm, data_lib):
     return gen_store_wgt(asm, data_lib)
   if asm['name'] == 'store_bias':
     return gen_store_bias(asm, data_lib)
+  if asm['name'] == 'load_act':
+    return gen_load_act(asm, data_lib)
 
 
   if asm['name'] == "maxp":

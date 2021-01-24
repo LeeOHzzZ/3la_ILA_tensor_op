@@ -27,7 +27,7 @@ def gen_write_v(asm, data_lib):
   return produce_insn(asm['addr'], data_lib[asm['vector_name']], 'W')
 
 def gen_read_v(asm):
-  # assembly: read_v [vector_name], [addr]
+  # assembly: read_v [addr]
   return produce_insn(asm['addr'], '0x0', 'R')
 
 # -------------------------------------------
