@@ -20,7 +20,7 @@ def axi_out2float(in_path, out_path, mem_idx, num_ts, num_v_in, num_v_out, bias)
   mem_base = get_gb_base_addr_1(num_ts, num_v_in)*16 # byte level
 
   for ts_idx in range(num_ts):
-    for v_idx in range(num_v_in):
+    for v_idx in range(num_v_out):
       addr = mem_base + get_gb_large_addr_offset(ts_idx, num_v_out, v_idx)
       addr_str = '0x{:08X}'.format(addr)
       data_str = v_data[addr_str][2:]
