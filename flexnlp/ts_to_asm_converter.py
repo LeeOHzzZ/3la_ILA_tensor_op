@@ -12,24 +12,37 @@ GB_LAYER_NORM_START = 3
 instr_cntr = 1
 # this base address is byte level
 gb_large_buf_mem_base_1 = 0
+gb_large_buf_mem_base = [0, 0, 0, 0]
 
 # -----------------------------------------
 # Helper function
 # -----------------------------------------
-def get_gb_large_v_addr(idx, num_vector, vector_idx):
+
+def get_gb_large_addr_offset(ts_idx, num_vector, vector_idx):
   # calculate the start address offset in the gbcore large buffer
   timestep_size = num_vector * FLEXNLP_VECTOR_SIZE
   group_size = timestep_size * FLEXNLP_GBCORE_NUM_BANKS
   gb_buf_row_size = FLEXNLP_GBCORE_NUM_BANKS * FLEXNLP_VECTOR_SIZE
-  out = (int(idx/FLEXNLP_GBCORE_NUM_BANKS)) * group_size + \
-        (idx%FLEXNLP_GBCORE_NUM_BANKS) * FLEXNLP_VECTOR_SIZE + \
+  out = (int(ts_idx/FLEXNLP_GBCORE_NUM_BANKS)) * group_size + \
+        (ts_idx%FLEXNLP_GBCORE_NUM_BANKS) * FLEXNLP_VECTOR_SIZE + \
         gb_buf_row_size * vector_idx
+  # out += int(FLEXNLP_GB_LARGE_BUF_BASE, base=16)
+  return out
+
+def get_gb_large_abs_addr(mem_idx, ts_idx, num_v, v_idx):
+  global gb_large_buf_mem_base
+  out = get_gb_large_addr_offset(ts_idx, num_v, v_idx)
   out += int(FLEXNLP_GB_LARGE_BUF_BASE, base=16)
+  out += gb_large_buf_mem_base[mem_idx]
   return out
 
 def get_pe_base_bias_v(num_v):
   # get bias base address in pe input buffer (vector level address)
   return num_v + 0x10
+
+def get_gb_base_addr_1(num_ts, num_v_in):
+  # get base address for gb large buffer of memory index 1 (vector_level)
+  return int(num_ts/16 + 2) * 16 * num_v_in
 
 def gen_gb_mngr_large(base_0, num_v_0, base_1, num_v_1):
   # help generate assemlby for configuring gb large manager
@@ -57,7 +70,7 @@ def gen_store_act(asm, data_lib):
 
   for v in range(num_vector_in):
     v_name = tensor_idx + '.' + str(v)
-    addr = hex(get_gb_large_v_addr(idx, num_vector_in, v))
+    addr = hex(get_gb_large_abs_addr(0, idx, num_vector_in, v))
     ret.append({
       'name' : 'write_v',
       'vector_name' : v_name,
@@ -127,12 +140,10 @@ def gen_load_act(asm, data_lib):
   # assumption:
   #   hard to implement return tensor symbol
   num_v_out = data_lib['gb_num_vector_out']
-  global gb_large_buf_mem_base_1
+  global gb_large_buf_mem_base
   ret = []
   for v in range(num_v_out):
-    addr = get_gb_large_v_addr(asm['ts_idx'], num_v_out, v)
-    if asm['mem_idx'] == 1:
-      addr += gb_large_buf_mem_base_1
+    addr = get_gb_large_abs_addr(asm['mem_idx'], asm['ts_idx'], num_v_out, v)
     ret.append({
       'name' : 'read_v',
       'addr' : hex(addr)
@@ -232,11 +243,12 @@ def gen_linear_layer(asm, data_lib):
   
   # set up gb memory manager
   num_ts = asm['num_ts']
-  base_addr_1 = int(num_ts/16 + 2) * 16 * gb_num_v_in # this value is vector level
+  # this value is vector level
+  base_addr_1 = get_gb_base_addr_1(num_ts, gb_num_v_in)
   # temporarily set this index as global variable.
   # should come up with better solution
-  global gb_large_buf_mem_base_1 
-  gb_large_buf_mem_base_1 = base_addr_1 * 16
+  global gb_large_buf_mem_base 
+  gb_large_buf_mem_base[1] = base_addr_1 * 16
 
   ret.append(
     gen_gb_mngr_large(0, gb_num_v_in, base_addr_1, gb_num_v_out)

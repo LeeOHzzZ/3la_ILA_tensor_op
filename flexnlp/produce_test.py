@@ -148,7 +148,7 @@ def wgt_tiling(wgt_in, num_vector_in, num_vector_out):
   return ret[1:,]
 
 def exec_converter(file_in, bias, file_out):
-  cmd_0 = ['./npy/adpfloat_converter.out', file_in, str(bias), file_out]
+  cmd_0 = ['./npy/float_to_adpfloat.out', file_in, str(bias), file_out]
   cmd_1 = ['rm', '-f', file_in]
   subprocess.run(cmd_0)
   subprocess.run(cmd_1)
@@ -182,9 +182,10 @@ def produce_data_lib_ly(param, num_ts, out_path):
   with open('./npy/inp_q_v.txt', 'r') as fin:
     inp_v_list = fin.read().splitlines()
   assert len(inp_v_list) == num_v_in * num_ts
+
   for ts_idx in range(num_ts):
     for v in range(num_v_in):
-      data_lib['ts_'+str(ts_idx)+'.' + str(v)] = inp_v_list[v]
+      data_lib['ts_'+str(ts_idx)+'.' + str(v)] = inp_v_list[ts_idx*num_v_in+v]
 
   
   with open(out_path, 'w') as fout:
@@ -193,19 +194,26 @@ def produce_data_lib_ly(param, num_ts, out_path):
   print("linear_layer test data_lib has been dumped to " + out_path)
 
 
-def produce_linear_layer_test_data(num_vector_in, num_vector_out, num_ts):
+def produce_linear_layer_test_data(num_vector_in, num_vector_out, num_ts, is_bias):
   coef = 0.2
   wgt_init = coef*np.random.random_sample((16*num_vector_out, 16*num_vector_in))
   inp_init = coef*np.random.random_sample((num_vector_in * 16 * num_ts))
-  bias_init = coef*np.random.random_sample((num_vector_out*16))
 
-  print('\n-------------------------------------------------')
-  print('producing random input data')
-  print('-------------------------------------------------\n')
+  if is_bias:
+    bias_init = coef*np.random.random_sample((num_vector_out*16))
+    print("\n\t**linear_layer bias is enabled**\n")
+  else:
+    bias_init = np.zeros(num_vector_out*16)
+    print("\n\t**linear_layer bias is disabled, the following bias is a zero vector**\n")
+
+  print('\n--------------------------------------------------------------')
+  print('\tproducing random input data')
+  print('--------------------------------------------------------------\n')
   print('(wgt, inp, bias) shape is ' + str((wgt_init.shape, inp_init.shape, bias_init.shape)))
 
   for i in range(num_ts):
-    ref = np.add(np.matmul(wgt_init, inp_init[num_vector_in*16*i:num_vector_in*16*(i+1)]), bias_init)
+    inp_ts = inp_init[num_vector_in*16*i:num_vector_in*16*(i+1)]
+    ref = np.add(np.matmul(wgt_init, inp_ts), bias_init)
     ref.tofile('./npy/ref_' + str(i) + '.txt', sep = '\n')
     print("reference output No.{}".format(i))
     print(ref)
@@ -232,9 +240,9 @@ def produce_linear_layer_test_data(num_vector_in, num_vector_out, num_ts):
     'w0_num_tile' : int(num_vector_in * num_vector_out)
   }
   
-  print('\n-------------------------------------------------')
-  print('evoking float to adpfloat converter')
-  print('-------------------------------------------------\n')
+  print('\n--------------------------------------------------------------')
+  print('\tinvoking float to adpfloat converter')
+  print('--------------------------------------------------------------\n')
 
   wgt_qt.tofile('./npy/wgt_qt.txt', sep = '\n')
   inp_q.tofile('./npy/inp_q.txt', sep = '\n')
@@ -247,9 +255,11 @@ def produce_linear_layer_test_data(num_vector_in, num_vector_out, num_ts):
 
   produce_data_lib_ly(param, num_ts, './test/ly_data_lib.json')
 
+  return bias_act+10
+
 def produce_linear_layer_test(num_vector_in, num_vector_out, num_ts, is_bias):
   produce_linear_layer_asm(num_ts, is_bias)
-  produce_linear_layer_test_data(num_vector_in, num_vector_out, num_ts)
+  return produce_linear_layer_test_data(num_vector_in, num_vector_out, num_ts, is_bias)
 
 # ===============================================
 # ===============================================
