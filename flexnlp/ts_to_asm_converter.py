@@ -248,7 +248,7 @@ def gen_linear_layer(asm, data_lib):
     'mode' : 0,
     'is_rnn' : 0,
     'mem_id_i' : 0,
-    'mem_id_o' : 0,
+    'mem_id_o' : 1,
     'num_v_i' : data_lib['gb_num_vector_in'],
     'num_v_o' : data_lib['gb_num_vector_out'],
     'num_ts' : num_ts
@@ -280,6 +280,8 @@ def generate_ila_insns(asm, data_lib):
   """
   asm_types = ['store_act', 'store_wgt', 'store_bias', 'load_act']
   asm_types += ['maxp', 'linear_layer']
+  # this instruction added for simulation
+  asm_types += ['wait_irq']
   assert asm['name'] in asm_types, "not supported ILA assembly"
 
   # asm format: asm_name arg_0 [, arg_1 ...]
@@ -297,6 +299,9 @@ def generate_ila_insns(asm, data_lib):
     return gen_maxp(asm, data_lib)
   if asm['name'] == 'linear_layer':
     return gen_linear_layer(asm, data_lib)
+
+  if asm['name'] == 'wait_irq':
+    return [{'name' : 'wait_irq'}]
 
 
 def convert_ila_insns(asm_dump, data_dump):

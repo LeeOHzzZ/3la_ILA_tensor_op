@@ -113,12 +113,23 @@ def produce_linear_layer_asm(num_ts, is_bias):
       'timestep_idx' : 'ts_' + str(i),
       'idx' : i
     })
-    
+
   ila_asm.append({
     'name' : 'linear_layer',
     'num_ts' : num_ts,
     'is_bias' : is_bias
   })
+
+  ila_asm.append({
+    'name' : 'wait_irq'
+  })
+
+  for i in range(num_ts):
+    ila_asm.append({
+      'name' : 'load_act',
+      'mem_idx' : 1,
+      'ts_idx' : i
+    })
   
   ila_asm = {'asm': ila_asm}
 
@@ -153,7 +164,7 @@ def produce_data_lib_ly(param, num_ts, out_path):
   num_v_out = param['gb_num_vector_out']
 
   # write wgt data into data_lib
-  with open('./npy/wgt_qt_v', 'r') as fin:
+  with open('./npy/wgt_qt_v.txt', 'r') as fin:
     wgt_v_list = fin.read().splitlines()
   assert len(wgt_v_list)%16 == 0
   for t in range(num_v_in * num_v_out):
@@ -161,14 +172,14 @@ def produce_data_lib_ly(param, num_ts, out_path):
       data_lib['w0.t'+str(t)+'.'+str(v)] = wgt_v_list[16*t+v] 
 
   # write bias data into data_lib
-  with open('./npy/bias_q_v', 'r') as fin:
+  with open('./npy/bias_q_v.txt', 'r') as fin:
     bias_v_list = fin.read().splitlines()
   assert len(bias_v_list) == num_v_out
   for v in range(num_v_out):
     data_lib['b0.' + str(v)] = bias_v_list[v]
 
   # write inp data into data_lib
-  with open('./npy/inp_q_v', 'r') as fin:
+  with open('./npy/inp_q_v.txt', 'r') as fin:
     inp_v_list = fin.read().splitlines()
   assert len(inp_v_list) == num_v_in * num_ts
   for ts_idx in range(num_ts):
@@ -183,9 +194,23 @@ def produce_data_lib_ly(param, num_ts, out_path):
 
 
 def produce_linear_layer_test_data(num_vector_in, num_vector_out, num_ts):
-  wgt_init = np.random.random_sample((16*num_vector_out, 16*num_vector_in))
-  inp_init = np.random.random_sample((num_vector_in * 16 * num_ts))
-  bias_init = np.random.random_sample((num_vector_out*16))
+  coef = 0.2
+  wgt_init = coef*np.random.random_sample((16*num_vector_out, 16*num_vector_in))
+  inp_init = coef*np.random.random_sample((num_vector_in * 16 * num_ts))
+  bias_init = coef*np.random.random_sample((num_vector_out*16))
+
+  print('\n-------------------------------------------------')
+  print('producing random input data')
+  print('-------------------------------------------------\n')
+  print('(wgt, inp, bias) shape is ' + str((wgt_init.shape, inp_init.shape, bias_init.shape)))
+
+  for i in range(num_ts):
+    ref = np.add(np.matmul(wgt_init, inp_init[num_vector_in*16*i:num_vector_in*16*(i+1)]), bias_init)
+    ref.tofile('./npy/ref_' + str(i) + '.txt', sep = '\n')
+    print("reference output No.{}".format(i))
+    print(ref)
+    ref_q, bias_act = quantize_floatext(ref)
+    print("bias_act is {}".format(bias_act + 10))
 
   wgt_q, bias_wgt = quantize_floatext(wgt_init)
   inp_q, bias_inp = quantize_floatext(inp_init)
@@ -203,18 +228,22 @@ def produce_linear_layer_test_data(num_vector_in, num_vector_out, num_ts):
     'adpbias_wgt' : int(bias_wgt),
     'adpbias_inp' : int(bias_inp),
     'adpbias_bias' : int(bias_b),
-    'adpbias_pe_act' : 2,
+    'adpbias_pe_act' : int(bias_act + 10),
     'w0_num_tile' : int(num_vector_in * num_vector_out)
   }
+  
+  print('\n-------------------------------------------------')
+  print('evoking float to adpfloat converter')
+  print('-------------------------------------------------\n')
 
-  wgt_qt.tofile('./npy/wgt_qt', sep = '\n')
-  inp_q.tofile('./npy/inp_q', sep = '\n')
-  bias_q.tofile('./npy/bias_q', sep = '\n')
+  wgt_qt.tofile('./npy/wgt_qt.txt', sep = '\n')
+  inp_q.tofile('./npy/inp_q.txt', sep = '\n')
+  bias_q.tofile('./npy/bias_q.txt', sep = '\n')
   # print("(bias_wgt, bias_inp, bias_b) is ", (bias_wgt, bias_inp, bias_b))
   # call converter binary to do the conversion
-  exec_converter("./npy/wgt_qt", bias_wgt, "./npy/wgt_qt_v")
-  exec_converter("./npy/inp_q", bias_inp, "./npy/inp_q_v")
-  exec_converter("./npy/bias_q", bias_b, "./npy/bias_q_v")
+  exec_converter("./npy/wgt_qt.txt", bias_wgt, "./npy/wgt_qt_v.txt")
+  exec_converter("./npy/inp_q.txt", bias_inp, "./npy/inp_q_v.txt")
+  exec_converter("./npy/bias_q.txt", bias_b, "./npy/bias_q_v.txt")
 
   produce_data_lib_ly(param, num_ts, './test/ly_data_lib.json')
 
@@ -233,4 +262,4 @@ if __name__ == "__main__":
   
   # produce_asm(asm_out_path)
   # produce_data(data_out_path)
-  produce_linear_layer_test(16, 4, 10, 1)
+  produce_linear_layer_test(4, 4, 3, 1)

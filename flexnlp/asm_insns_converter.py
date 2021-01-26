@@ -38,7 +38,8 @@ def gen_pe_cfg_rnn_layer_sizing(asm):
   assert asm['pe_idx'] in range(4), 'not supported pe_idx for gen_pe_cfg_rnn_layer_sizing'
   assert len(asm) == 7, 'incorrect arguments for pe_cfg_rnn_layer_sizing'
   addr = hex(0x34000000 + asm['pe_idx'] * 0x01000000 + 0x00400010)
-  instr = hex(asm['num_v_out']) + hex(asm['num_mngr'])[2:].zfill(2) + \
+  instr = "0x0" + \
+          hex(asm['num_v_out'])[2:].zfill(2) + hex(asm['num_mngr'])[2:].zfill(2) + \
           hex(asm['is_bias'])[2:].zfill(2) + hex(asm['is_cluster'])[2:].zfill(2) + \
           hex(asm['is_zero'])[2:].zfill(2) + '01'
   return produce_insn(addr, instr, 'W')
@@ -49,7 +50,8 @@ def gen_pe_cfg_mngr(asm):
   assert asm['mngr_idx'] in range(1,3), 'not supported mngr_idx for pe_cfg_mngr'
   assert len(asm) == 11, "incorrect arguments for pe_cfg_mngr"
   addr = hex(0x34000000 + asm['pe_idx'] * 0x01000000 + 0x00400000 + asm['mngr_idx'] * 0x20)
-  instr = hex(asm['base_inp']) + hex(asm['base_bias'])[2:].zfill(4) + hex(asm['base_wgt'])[2:].zfill(4) + \
+  instr = '0x0' + hex(asm['base_inp'])[2:].zfill(4) + \
+          hex(asm['base_bias'])[2:].zfill(4) + hex(asm['base_wgt'])[2:].zfill(4) + \
           hex(asm['num_v_in'])[2:].zfill(4) + \
           hex(asm['adpbias_inp'])[2:].zfill(2) + hex(asm['adpbias_bias'])[2:].zfill(2) + \
           hex(asm['adpbias_wgt'])[2:].zfill(2) + hex(asm['is_zero'])[2:].zfill(2)
@@ -59,7 +61,8 @@ def gen_pe_cfg_act_mngr(asm):
   # assembly: pe_cfg_act_mngr [pe_idx], [is_zero], [adpfloat_bias], [num_insn], [num_v_out], [buf_base], [out_base]
   assert asm['pe_idx'] in range(4), 'not supported pe_idx for gen_pe_cfg_act_mngr'
   addr = hex(0x34000000 + asm['pe_idx']*0x01000000 + 0x00800010)
-  instr = hex(asm['out_base']) + hex(asm['buf_base'])[2:].zfill(4) + \
+  instr = '0x0' + \
+          hex(asm['out_base'])[2:].zfill(2) + hex(asm['buf_base'])[2:].zfill(4) + \
           hex(asm['num_v_out'])[2:].zfill(4) + hex(asm['num_insn'])[2:].zfill(2) + \
           hex(asm['adpfloat_bias'])[2:].zfill(2) + hex(asm['is_zero'])[2:].zfill(2) + '01'
   return produce_insn(addr, instr, 'W')
@@ -71,13 +74,13 @@ def gen_pe_cfg_act_v(asm):
   assert asm['v_idx'] in range(1,3), 'not supported v_idx for gen_pe_cfg_act_v'
   addr = hex(0x34000000 + asm['pe_idx']*0x01000000 + 0x00800000 + 0x10*(asm['v_idx']+1))
   instr = ''
-  for i in range(15):
+  for i in range(16):
     key = 'insn_' + str(i)
     if key in asm:
       instr = asm[key][2:].zfill(2) + instr
     else:
       instr = 2*'0' + instr
-  return produce_insn(addr, instr, 'W')
+  return produce_insn(addr, '0x0'+instr, 'W')
 
 # -------------------------------------------
 # memory manager configuration instructions
@@ -142,12 +145,13 @@ def gen_cfg_gb_ctrl(asm):
   # assembly: cfg_gb_ctrl [mode], [is_rnn], [mem_id_i], [mem_id_o], [num_v_i], [num_v_o], [num_ts]
   # assumptions: all input types are integer
   addr = '0x33700010'
+  num_timestep = hex(asm['num_ts'])[2:].zfill(4)
   num_v_field = hex(asm['num_v_o'])[2:].zfill(2) + hex(asm['num_v_i'])[2:].zfill(2)
   mem_id_field = hex(asm['mem_id_o'])[2:].zfill(2) + hex(asm['mem_id_i'])[2:].zfill(2)
   rnn_flag_field = hex(asm['is_rnn'])[2:].zfill(4)
   mode_field = hex(asm['mode'])[2:].zfill(2)
   valid_field = '01'
-  instr = hex(asm['num_ts']) + num_v_field + mem_id_field + rnn_flag_field + mode_field + valid_field
+  instr = '0x0' + num_timestep + num_v_field + mem_id_field + rnn_flag_field + mode_field + valid_field
 
   return produce_insn(addr, instr, 'W')
 
@@ -164,7 +168,7 @@ def gen_start(asm):
     4 : '0x33000040',
     5 : '0x33000050'
   }.get(asm['op'])
-  return produce_insn(addr, '0x1', 'W')
+  return produce_insn(addr, '0x01', 'W')
 
 # --------------------------------------------
 # --------------------------------------------
@@ -175,6 +179,8 @@ def generate_ila_insns(asm, data_lib):
   asm_types += ['cfg_mmngr_gb_large', 'cfg_mmngr_gb_small']
   asm_types += ['cfg_ly_reduce', 'cfg_gb_ctrl']
   asm_types += ['start']
+  # wait for interrupt signal added for simulation
+  asm_types += ['wait_irq']
     
   assert asm['name'] in asm_types, \
     "'" + asm['name'] + "' is not a supported flexnlp-ila assembly"
@@ -209,6 +215,10 @@ def generate_ila_insns(asm, data_lib):
   # function trigger instructions
   if asm['name'] == 'start':
     return gen_start(asm)
+
+  # wait for interrupt signals for simulation
+  if asm['name'] == 'wait_irq':
+    return produce_insn('0x0', '0x0', 'Q')
 
 def convert_ila_insns(asm_dump, data_dump):
   asm_list = asm_dump['asm']
