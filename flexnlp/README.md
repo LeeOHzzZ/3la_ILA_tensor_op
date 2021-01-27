@@ -4,6 +4,12 @@ This folder define the ILA tensor op assembly and ILA assembly instructions, and
 ### Code generation flow
 flexnlp-ila tensor assembly --> flexnlp-ila assembly --> flexnlp-ila program fragment --> flexnlp AXI commands
 
+### Run the test flow
+```bash
+python3 linear_layer_testflow.py [num_vector_in] [num_vector_out] [num_timestep] [is_bias]
+# example: python3 linear_layer_testflow.py 16 4 10 1
+# [num_vector_out] must be integer multiple of 4
+```
 ---
 
 ### FlexNLP-ILA tensor op assembly
