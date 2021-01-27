@@ -197,6 +197,7 @@ class linear_layer_test:
             relative error (vs. ref): {:5.5%}\n".format(i, err_out, err_ref))
 
   def run(self):
+    subprocess.run(['mkdir', 'npy', 'test'])
     self.produce_linear_layer_test()
     self.gen_prog_frag()
     self.invoke_ila_simulator()
