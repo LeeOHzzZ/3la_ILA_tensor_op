@@ -123,3 +123,5 @@ class tool:
   def get_gb_base_addr_1(self, num_ts, num_v_in):
     # get base address for gb large buffer of memory index 1 (vector_level)
     return int(num_ts/16 + 2) * 16 * num_v_in
+
+  

@@ -1,0 +1,30 @@
+{
+    "asm": [
+        {
+            "name": "store_wgt",
+            "wgt_idx": "w0"
+        },
+        {
+            "name": "store_bias",
+            "bias_idx": "b0"
+        },
+        {
+            "name": "store_act",
+            "timestep_idx": "ts_0",
+            "idx": 0
+        },
+        {
+            "name": "linear_layer",
+            "num_ts": 1,
+            "is_bias": 0
+        },
+        {
+            "name": "wait_irq"
+        },
+        {
+            "name": "load_act",
+            "mem_idx": 1,
+            "ts_idx": 0
+        }
+    ]
+}
