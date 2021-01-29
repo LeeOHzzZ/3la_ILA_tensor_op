@@ -61,15 +61,15 @@ class linear_layer_driver:
     print('\tproducing random input data')
     print('--------------------------------------------------------------\n')
     coef = 0.2
-    wgt_init = coef*np.random.random_sample((16*self.num_v_out, 16*self.num_v_in))
-    inp_init = coef*np.random.random_sample((self.num_v_in * 16 * self.num_ts))
+    wgt_init = coef*np.random.uniform(0, 1, (16*self.num_v_out, 16*self.num_v_in)).astype(np.float32)
+    inp_init = coef*np.random.uniform(0, 1, (self.num_v_in * 16 * self.num_ts)).astype(np.float32)
     print('(wgt, inp) shape is ({},{})'.format(wgt_init.shape, tuple(t/self.num_ts for t in inp_init.shape)))
 
     if self.is_bias == 1:
-      bias_init = coef*np.random.random_sample((self.num_v_out*16))
+      bias_init = coef*np.random.uniform(0, 1, (self.num_v_out*16)).astype(np.float32)
       print("\n**linear_layer bias is enabled**\n")
     else:
-      bias_init = np.zeros(self.num_v_out*16)
+      bias_init = np.zeros((self.num_v_out*16, ), dtype=np.float32)
       print("\n**linear_layer bias is disabled, the following bias is a zero vector**\n")
     
     self.wgt = wgt_init
@@ -230,7 +230,7 @@ class linear_layer_driver:
     print('--------------------------------------------------------------\n')
     for i in range(self.num_ts):
       result_ts = self.result[self.num_v_out*16*i : self.num_v_out*16*(i+1)]
-      print(result_ts)
+      # print(result_ts)
       ref = np.fromfile('./test/ref_{}.tmp'.format(i), sep = '\n')
       err_out, err_ref = self.tl.cal_error(result_ts, ref)
       print("result timestep No.{} --- relative error (vs. sim_out): {:5.5%}\
@@ -273,5 +273,5 @@ if __name__ == '__main__':
 
   driver = linear_layer_driver(num_v_in, num_v_out, num_ts, is_bias)
   driver.run()
-  # driver.result_analysis()
+  driver.result_analysis()
   driver.clean_up()

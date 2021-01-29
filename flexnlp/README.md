@@ -6,8 +6,8 @@ flexnlp-ila tensor assembly --> flexnlp-ila assembly --> flexnlp-ila program fra
 
 ### Run the test flow
 ```bash
-python3 linear_layer_testflow.py [num_vector_in] [num_vector_out] [num_timestep] [is_bias]
-# example: python3 linear_layer_testflow.py 16 4 10 1
+python3 linear_layer_test.py [num_vector_in] [num_vector_out] [num_timestep] [is_bias]
+# example: python3 linear_layer_test.py 16 4 10 1
 # [num_vector_out] must be integer multiple of 4
 ```
 ---

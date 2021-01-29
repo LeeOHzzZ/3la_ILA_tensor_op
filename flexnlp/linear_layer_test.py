@@ -10,7 +10,7 @@ from linear_layer_driver import linear_layer_driver as driver
 
 if __name__ == '__main__':
   assert len(sys.argv) == 5, \
-    "Usage: python3 linear_layer_testflow.py [num_vector_in] [num_vector_out] [num_timestep] [is_bias]"
+    "Usage: python3 linear_layer_test.py [num_vector_in] [num_vector_out] [num_timestep] [is_bias]"
   num_v_in = int(sys.argv[1])
   num_v_out = int(sys.argv[2])
   num_ts = int(sys.argv[3])
