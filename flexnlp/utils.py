@@ -22,7 +22,8 @@ class tool:
   def cal_error(self, result, ref):
     diff = result - ref
     abs_diff = np.abs(diff)
-    mean_diff = np.sum(abs_diff) / (result.size * ref.size)
+    mean_diff = np.sum(abs_diff) / (diff.size)
+    # print(result.size, ref.size)
     return mean_diff/np.mean(result), mean_diff/np.mean(ref)
 
   def get_adpfloat_bias(self, array):
