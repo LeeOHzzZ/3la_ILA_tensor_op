@@ -18,4 +18,9 @@ if __name__ == '__main__':
 
   test = driver(num_v_in, num_v_out, num_ts, is_bias)
   test.run_test()
+  
+  test.wgt.tofile('./data/wgt.txt', sep = '\n')
+  test.inp.tofile('./data/inp.txt', sep = '\n')
+  test.bias.tofile('./data/bias.txt', sep = '\n')
+
   test.clean_up()

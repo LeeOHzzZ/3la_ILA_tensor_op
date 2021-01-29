@@ -90,11 +90,10 @@ class linear_layer_driver:
     wgt_path = './data/wgt.txt'
     print('collecting wgt from ' + wgt_path)
     wgt = np.fromfile(wgt_path, sep = '\n')
-    wgt.reshape((16*self.num_v_out, 16*self.num_v_in))
-    self.wgt = wgt
+    self.wgt = wgt.reshape((16*self.num_v_out, 16*self.num_v_in))
 
     if self.is_bias == 1:
-      bias_path = './data/bias_txt'
+      bias_path = './data/bias.txt'
       print('collecting bias from ' + bias_path)
       self.bias = np.fromfile(bias_path, sep = '\n')
     else:
@@ -106,10 +105,13 @@ class linear_layer_driver:
     # -------------------------
     for i in range(self.num_ts):
       inp_ts = self.inp[self.num_v_in*16*i : self.num_v_in*16*(i+1)]
+      # print(inp_ts.shape)
+      # print(self.wgt.shape)
+
       ref = np.add(np.matmul(self.wgt, inp_ts), self.bias)
       ref.tofile('./test/ref_{}.tmp'.format(i), sep = '\n')
       # print("reference output No.{}".format(i))
-      print(ref)
+      # print(ref)
       ref_q, bias_act = self.tl.get_adpfloat_bias(ref)
       # print("bias_act is {}\n".format(bias_act + 10))
       self.bias_act = bias_act
@@ -245,7 +247,7 @@ class linear_layer_driver:
     self.get_ila_sim_result()
     # self.result_analysis()
     # dump result
-    np.tofile('./data/result.txt', sep = '\n')
+    self.result.tofile('./data/result.txt', sep = '\n')
   
   def run_test(self):
     subprocess.run(['mkdir', '-p', 'npy', 'test'])
@@ -271,5 +273,5 @@ if __name__ == '__main__':
 
   driver = linear_layer_driver(num_v_in, num_v_out, num_ts, is_bias)
   driver.run()
-  driver.result_analysis()
+  # driver.result_analysis()
   driver.clean_up()
