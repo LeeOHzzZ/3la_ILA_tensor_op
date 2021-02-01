@@ -19,11 +19,11 @@ class linear_layer_driver:
     ila_asm = []
     ila_asm.append({
       'name' : 'store_wgt',
-      'wgt_idx' : 'w0'
+      'wgt_idx' : 'w0',
     })
     ila_asm.append({
       'name' : 'store_bias',
-      'bias_idx' : 'b0'
+      'bias_idx' : 'b0',
     })
     for i in range(self.num_ts):
       ila_asm.append({
@@ -141,7 +141,7 @@ class linear_layer_driver:
       'adpbias_inp' : self.bias_inp,
       'adpbias_bias' : self.bias_b,
       'adpbias_pe_act' : self.bias_act,
-      'w0_num_tile' : int(self.num_v_in * self.num_v_out)
+      'w0_num_tile' : int(self.num_v_in * self.num_v_out),
     }
 
     print('\n--------------------------------------------------------------')
@@ -224,7 +224,7 @@ class linear_layer_driver:
   
     self.result = np.fromfile('./test/ly_float_result.tmp', sep = '\n')
   
-  def result_analysis(self):
+  def result_analysis(self, is_verbose):
     print('\n--------------------------------------------------------------')
     print('\tanalyze ILA simulation result')
     print('--------------------------------------------------------------\n')
@@ -235,6 +235,8 @@ class linear_layer_driver:
       err_out, err_ref = self.tl.cal_error(result_ts, ref)
       print("result timestep No.{} --- relative error (vs. sim_out): {:5.5%}\
             relative error (vs. ref): {:5.5%}\n".format(i, err_out, err_ref))
+      if is_verbose:
+        print("reference output: \n{}\nresult: \n{}\n".format(ref, result_ts))
 
   def run(self):
     subprocess.run(['mkdir', '-p', 'npy', 'test'])
@@ -255,7 +257,7 @@ class linear_layer_driver:
     self.gen_prog_frag()
     self.invoke_ila_simulator()
     self.get_ila_sim_result()
-    self.result_analysis()
+    self.result_analysis(1)
 
   def clean_up(self):
     for file in os.listdir('./test'):
@@ -273,5 +275,5 @@ if __name__ == '__main__':
 
   driver = linear_layer_driver(num_v_in, num_v_out, num_ts, is_bias)
   driver.run()
-  driver.result_analysis()
+  driver.result_analysis(0)
   driver.clean_up()

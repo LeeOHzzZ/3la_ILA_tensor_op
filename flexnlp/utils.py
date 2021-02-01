@@ -124,5 +124,13 @@ class tool:
   def get_gb_base_addr_1(self, num_ts, num_v_in):
     # get base address for gb large buffer of memory index 1 (vector_level)
     return int(num_ts/16 + 2) * 16 * num_v_in
+  
+  def get_pe_base_bias_v_1(self, num_v):
+    # get bias base address in pe input buffer (vector level)
+    return num_v + 0x10
+  
+  def get_pe_base_bias_v_2(self, num_v_in, num_v_out):
+    # get bias base address in pe input buffer for hidden state
+    return self.get_pe_base_bias_v_1(num_v_in) + num_v_out*2 + 0x20
 
   

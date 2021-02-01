@@ -17,6 +17,11 @@ python3 linear_layer_test.py [num_vector_in] [num_vector_out] [num_timestep] [is
   - `store_act [timestep_idx], [idx]`
   - `store_wgt [wgt_idx]`
   - `store_bias [bias_idx]`
+  - `store_wgt_i [wgt_idx]`
+  - `store_wgt_h [wgt_idx]`
+  - `store_bias_i [bias_idx]`
+  - `store_bias_h [bias_idx]`
+  - `load_act [mem_idx], [idx]`
 - Operation
   - `maxp [num_ts]`
   - `linear_layer [num_ts], [is_bias]`

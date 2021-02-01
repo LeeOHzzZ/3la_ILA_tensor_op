@@ -47,9 +47,22 @@ class ts_asm_converter:
       'num_v_1' : num_v_1
     }
     
-  def get_pe_base_bias_v(self, num_v):
+  def get_pe_hidden_wgt_offset(self, num_v_in, num_v_out):
+    # return the offset address for hidden weight matrix in PE
+    # this address is vector level address
+    return num_v_in * num_v_out * 16
+
+  def get_pe_base_bias_v_1(self, num_v):
     # get bias base address in pe input buffer (vector level address)
     return num_v + 0x10
+  
+  def get_pe_base_bias_v_2(self, num_v_in, num_v_out):
+    # get bias base address in pe input buffer for hidden state (vector level addr)
+    return self.get_pe_base_h_input(num_v_in, num_v_out) + num_v_out + 0x10
+  
+  def get_pe_base_h_input(self, num_v_in, num_v_out):
+    # get base address for hidden state input in the PE input buffer (vector level addr)
+    return self.get_pe_base_bias_v_1(num_v_in) + num_v_out + 0x10
     
   def get_gb_base_addr_1(self, num_ts, num_v_in):
     # get base address for gb large buffer of memory index 1 (vector_level)
@@ -61,10 +74,11 @@ class ts_asm_converter:
     generate flexnlp-ila assembly from ILA tensor assembly
     """
     asm_types = ['store_act', 'store_wgt', 'store_bias', 'load_act']
+    asm_types += ['store_wgt_i', 'store_wgt_h', 'store_bias_i', 'store_bias_h']
     asm_types += ['maxp', 'linear_layer']
     # this instruction added for simulation
     asm_types += ['wait_irq']
-    assert asm['name'] in asm_types, "not supported ILA assembly"
+    assert asm['name'] in asm_types, "{} is a not supported ILA assembly".format(asm['name'])
 
     # asm format: asm_name arg_0 [, arg_1 ...]
     if asm['name'] == "store_act":
@@ -75,6 +89,16 @@ class ts_asm_converter:
       return self.gen_store_bias(asm)
     if asm['name'] == 'load_act':
       return self.gen_load_act(asm)
+
+    if asm['name'] == 'store_wgt_i':
+      return self.gen_store_wgt_i(asm)
+    if asm['name'] == 'store_wgt_h':
+      return self.gen_store_wgt_h(asm)
+    if asm['name'] == 'store_bias_i':
+      return self.gen_store_bias_i(asm)
+    if asm['name'] == 'store_bias_h':
+      return self.gen_store_bias_h(asm)
+
     if asm['name'] == "maxp":
       return self.gen_maxp(asm)
     if asm['name'] == 'linear_layer':
@@ -109,12 +133,12 @@ class ts_asm_converter:
 
   def gen_store_wgt(self, asm):
     # format: store_wgt [wgt_idx]
-    # [weight_idx]: weight matrix symbol
+    #   [weight_idx]: weight matrix symbol
     # description: 
     #   This instruction would store the weight matrix data into
     #   FlexNLP four PEs, according to FlexNLP tiling convention
     # assumptions:
-    #   data_lib already has weight matrix dimensions in tiles (16x16)    
+    #   data_lib already has weight matrix dimensions in tiles (16x16)
     wgt_idx = asm['wgt_idx']
     num_tiles = self.data_lib[wgt_idx + '_num_tile']
     ret = []
@@ -123,7 +147,6 @@ class ts_asm_converter:
       pe_base_addr = 0x34500000 + pe_idx*0x01000000
       tile_base_addr = pe_base_addr + (t%int(num_tiles/4))*16*16
       for v in range(16):
-        # v_name = wgt_idx + '.t' + str(t) + '.' + str(v)
         v_name = '{}.t{}.{}'.format(wgt_idx, t, v)
         addr = tile_base_addr + v*16
         ret.append({
@@ -147,7 +170,7 @@ class ts_asm_converter:
     # num_v_out are different for gb and pe
     num_v_out_gb = self.data_lib['gb_num_vector_out']
     num_v_out_pe = int(num_v_out_gb/4)
-    base_bias = self.get_pe_base_bias_v(num_v_in) * 16 # byte level address
+    base_bias = self.get_pe_base_bias_v_1(num_v_in) * 16 # byte level address
     ret = []
     for pe_idx in range(4):
       for v in range(num_v_out_pe):
@@ -180,6 +203,72 @@ class ts_asm_converter:
       })
     return ret
 
+  def gen_store_wgt_i(self, asm):
+    # format: store_wgt_i [wgt_idx]
+    #   [wgt_idx]: string, weight matrix symbol
+    # description:
+    #   Store input weights for RNN operation
+    return self.gen_store_wgt(asm)
+  
+  def gen_store_wgt_h(self, asm):
+    # format: store_wgt_h [wgt_idx]
+    #   [wgt_idx]: string, weight matrix symbol
+    # description:
+    #   store weight for hidden states for RNN operation
+    wgt_idx = asm['wgt_idx']
+    num_tiles = self.data_lib[wgt_idx + '_num_tile']
+    ret = []
+    for t in range(num_tiles):
+      pe_idx = int(t/(num_tiles/4))
+      pe_base_addr = 0x34500000 + pe_idx*0x01000000
+      num_v_in = self.data_lib['gb_num_vector_in']
+      num_v_out = self.data_lib['gb_num_vector_out']
+      addr_offset = 16 * self.get_pe_hidden_wgt_offset(num_v_in, num_v_out)
+      tile_base_addr = pe_base_addr + addr_offset + (t%int(num_tiles/4))*16*16
+      for v in range(16):
+        # v_name = wgt_idx + '.t' + str(t) + '.' + str(v)
+        v_name = '{}.t{}.{}'.format(wgt_idx, t, v)
+        addr = tile_base_addr + v*16
+        ret.append({
+          'name' : 'write_v',
+          'vector_name' : v_name,
+          'addr' : hex(addr)
+        })
+    return ret
+  
+  def gen_store_bias_i(self, asm):
+    # format: store_bias_i [bias_idx]
+    #   [bias_idx]: bias vector symbol
+    # description:
+    #   store input bias into PE for RNN operation
+    return self.gen_store_bias(asm)
+  
+  def gen_store_bias_h(self, asm):
+    # format: store_bias_h [bias_idx]
+    #   [bias_idx]: bias vector symbol
+    # description:
+    #   store bias for hidden states into PE for RNN operation
+    bias_idx = asm['bias_idx']
+    num_v_in = self.data_lib['gb_num_vector_in']
+    num_v_out_gb = self.data_lib['gb_num_vector_out']
+    num_v_out_pe = int(num_v_out_gb/4)
+    # use num_v_out_gb for this function
+    # pe would store the whole input timestep into PE input buffer
+    base_bias = self.get_pe_base_bias_v_2(num_v_in, num_v_out_gb) * 16 # byte level address
+    ret = []
+    for pe_idx in range(4):
+      for v in range(num_v_out_pe):
+        addr = 0x34600000 + pe_idx * 0x01000000 + base_bias + v*16
+        bias_v_idx = pe_idx * num_v_out_pe + v
+        # v_name = bias_idx + '.' + str(bias_v_idx)
+        v_name = '{}.{}'.format(bias_idx, bias_v_idx)
+        ret.append({
+          'name' : 'write_v',
+          'vector_name' : v_name,
+          'addr' : hex(addr)
+        })
+    return ret
+
   # ------------------------------------------
   # op assembly
   # ------------------------------------------
@@ -204,6 +293,13 @@ class ts_asm_converter:
       'name' : 'start',
       'op' : self.__GB_LAYER_REDUCE_START
     })
+    # read results from FlexNLP
+    for ts_idx in range(int(asm['num_ts'] / 2)):
+      ret.append({
+        'name' : 'load_act',
+        'mem_idx' : 0,
+        'idx' : ts_idx
+      })
     return ret
 
   def gen_linear_layer(self, asm):
@@ -246,7 +342,7 @@ class ts_asm_converter:
         'adpbias_inp' : self.data_lib['adpbias_inp'],
         'num_v_in' : gb_num_v_in,
         'base_wgt' : 0,
-        'base_bias' : self.get_pe_base_bias_v(gb_num_v_in),
+        'base_bias' : self.get_pe_base_bias_v_1(gb_num_v_in),
         'base_inp' : 0
       })
       # set up pe_cfg_act_mngr
