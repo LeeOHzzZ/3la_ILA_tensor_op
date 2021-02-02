@@ -44,15 +44,75 @@ class tool:
         ret = np.concatenate((ret, t), axis=0)
     return ret[1:,]
   
-  def wgt_to_data_lib(self, wgt, wgt_id, num_v_in, num_v_out, data_lib):
+  def lstm_wgt_tiling(self, wgt_in, num_v_in, num_v_out):
+    """
+    This function performs weight matrixing tiling for LSTM
+    """
+    ret = np.zeros((1,16))
+    assert num_v_out % 4 == 0, 'wrong value for num_v_out'
+    assert wgt_in.shape == (16*4*num_v_out, 16*num_v_in), \
+      'lstm_wgt_tiling: wgt_in shape {} doesn\'t match {}'.format(wgt_in.shape, (16*4*num_v_out, 16*num_v_in))
+    sub_height = 16*num_v_out
+    W_i = wgt_in[0 : sub_height, ]
+    W_f = wgt_in[sub_height : 2*sub_height, ]
+    W_g = wgt_in[2*sub_height : 3*sub_height, ]
+    W_o = wgt_in[3*sub_height : 4*sub_height, ]
+    
+    num_out_pe = num_v_out >> 2
+    sub_height_pe = sub_height >> 2 # sub height for matrice in each PE
+    for pe_idx in range(4):
+      # first divide each matrix into 4 parts for 4 PEs
+      W_i_p = W_i[pe_idx*sub_height_pe : (pe_idx+1)*sub_height_pe]
+      W_f_p = W_f[pe_idx*sub_height_pe : (pe_idx+1)*sub_height_pe]
+      W_g_p = W_g[pe_idx*sub_height_pe : (pe_idx+1)*sub_height_pe]
+      W_o_p = W_o[pe_idx*sub_height_pe : (pe_idx+1)*sub_height_pe]
+      for out_idx in range(num_out_pe):
+        # slicing each matrix for different output vectors
+        # tiling W_i
+        for in_idx in range(num_v_in):
+          t_i = W_i_p[16*out_idx : 16*(out_idx+1), 16*in_idx : 16*(in_idx+1)]
+          ret = np.concatenate((ret, t_i), axis=0)
+        # tiling W_g
+        for in_idx in range(num_v_in):
+          t_g = W_g_p[16*out_idx : 16*(out_idx+1), 16*in_idx : 16*(in_idx+1)]
+          ret = np.concatenate((ret, t_g), axis=0)
+        # tiling W_f
+        for in_idx in range(num_v_in):
+          t_f = W_f_p[16*out_idx : 16*(out_idx+1), 16*in_idx : 16*(in_idx+1)]
+          ret = np.concatenate((ret, t_f), axis=0)
+        # tiling W_o
+        for in_idx in range(num_v_in):
+          t_o = W_o_p[16*out_idx : 16*(out_idx+1), 16*in_idx : 16*(in_idx+1)]
+          ret = np.concatenate((ret, t_o), axis=0)
+
+    return ret[1:]
+  
+  def lstm_bias_reshape(self, bias_in, num_v):
+    """
+    This function reshape bias vectors for flexnlp LSTM op
+    """
+    # flexnlp bias arrangement is (b_i, b_g, b_f, b_o)
+    assert bias_in.shape == (4*16*num_v, ), \
+      'lstm_bias_reshape: bias shape should be {} instead of {}'.format((4*16*num_v, ), bias_in.shape)
+    sub_len = 16*num_v
+    B_i = bias_in[0 : sub_len, ]
+    B_f = bias_in[sub_len : 2*sub_len, ]
+    B_g = bias_in[2*sub_len : 3*sub_len, ]
+    B_o = bias_in[3*sub_len : 4*sub_len, ]
+
+    return np.concatenate((B_i, B_g, B_f, B_o))
+    
+  
+  def wgt_to_data_lib(self, wgt, wgt_id, num_tile, data_lib):
     """
     Write weight data into data_lib
     """
     assert len(wgt) % 16 == 0
-    for t in range(num_v_in * num_v_out):
+    for t in range(num_tile):
       for v in range(16):
         data_lib['{}.t{}.{}'.format(wgt_id, t, v)] = wgt[16*t+v]
     return data_lib
+  
   
   def vector_to_data_lib(self, v_list, id, num_v, data_lib):
     """

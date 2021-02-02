@@ -37,16 +37,6 @@ class ts_asm_converter:
     out += self.__gb_large_buf_mem_base[mem_idx]
     return out
 
-  def gen_gb_mngr_large(self, base_0, num_v_0, base_1, num_v_1):
-    # help generate assemlby for configuring gb large manager
-    return {
-      'name' : 'cfg_mmngr_gb_large',
-      'base_0' : hex(base_0),
-      'num_v_0' : num_v_0,
-      'base_1' : hex(base_1),
-      'num_v_1' : num_v_1
-    }
-    
   def get_pe_hidden_wgt_offset(self, num_v_in, num_v_out):
     # return the offset address for hidden weight matrix in PE
     # this address is vector level address
@@ -54,15 +44,15 @@ class ts_asm_converter:
 
   def get_pe_base_bias_v_1(self, num_v):
     # get bias base address in pe input buffer (vector level address)
-    return num_v + 0x10
+    return num_v + 0x1
   
   def get_pe_base_bias_v_2(self, num_v_in, num_v_out):
     # get bias base address in pe input buffer for hidden state (vector level addr)
-    return self.get_pe_base_h_input(num_v_in, num_v_out) + num_v_out + 0x10
+    return self.get_pe_base_h_input(num_v_in, num_v_out) + num_v_out + 0x1
   
   def get_pe_base_h_input(self, num_v_in, num_v_out):
     # get base address for hidden state input in the PE input buffer (vector level addr)
-    return self.get_pe_base_bias_v_1(num_v_in) + num_v_out + 0x10
+    return self.get_pe_base_bias_v_1(num_v_in) + num_v_out + 0x1
     
   def get_gb_base_addr_1(self, num_ts, num_v_in):
     # get base address for gb large buffer of memory index 1 (vector_level)
@@ -75,7 +65,7 @@ class ts_asm_converter:
     """
     asm_types = ['store_act', 'store_wgt', 'store_bias', 'load_act']
     asm_types += ['store_wgt_i', 'store_wgt_h', 'store_bias_i', 'store_bias_h']
-    asm_types += ['maxp', 'linear_layer']
+    asm_types += ['maxp', 'linear_layer', 'lstm_layer']
     # this instruction added for simulation
     asm_types += ['wait_irq']
     assert asm['name'] in asm_types, "{} is a not supported ILA assembly".format(asm['name'])
@@ -103,6 +93,8 @@ class ts_asm_converter:
       return self.gen_maxp(asm)
     if asm['name'] == 'linear_layer':
       return self.gen_linear_layer(asm)
+    if asm['name'] == 'lstm_layer':
+      return self.gen_lstm_layer(asm)
 
     if asm['name'] == 'wait_irq':
       return [{'name' : 'wait_irq'}]
@@ -279,7 +271,11 @@ class ts_asm_converter:
     #   timestep dimension is given in the data_lib file
     ret = []
     # set up gb memory manager
-    ret.append(self.gen_gb_mngr_large(0, self.data_lib['gb_num_vector_in'], 0,0))
+    ret.append({
+      'name' : 'cfg_mmngr_gb_large',
+      'base_0' : hex(0x0),
+      'num_v_0' : self.data_lib['gb_num_vector_in']
+    })
     # set up gb layer reduce configuration
     ret.append({
       'name' : 'cfg_ly_reduce',
@@ -293,13 +289,6 @@ class ts_asm_converter:
       'name' : 'start',
       'op' : self.__GB_LAYER_REDUCE_START
     })
-    # read results from FlexNLP
-    for ts_idx in range(int(asm['num_ts'] / 2)):
-      ret.append({
-        'name' : 'load_act',
-        'mem_idx' : 0,
-        'idx' : ts_idx
-      })
     return ret
 
   def gen_linear_layer(self, asm):
@@ -376,9 +365,14 @@ class ts_asm_converter:
     # should come up with better solution
     self.__gb_large_buf_mem_base[1] = base_addr_1 * 16
 
-    ret.append(
-      self.gen_gb_mngr_large(0, gb_num_v_in, base_addr_1, gb_num_v_out)
-    )
+    # set up gb large memory manager
+    ret.append({
+      'name' : 'cfg_mmngr_gb_large',
+      'base_0' : hex(0),
+      'num_v_0' : gb_num_v_in,
+      'base_1' : hex(base_addr_1),
+      'num_v_1' : gb_num_v_out
+    })
     # set up gb control configure
     # cfg_gb_ctrl [mode], [is_rnn], [mem_id_i], [mem_id_o], [num_v_i], [num_v_o], [num_ts]
     ret.append({
@@ -397,4 +391,149 @@ class ts_asm_converter:
       'op' : self.__GB_CONTROL_START
     })
 
-    return ret  
+    return ret 
+
+  def gen_lstm_layer(self, asm):
+    # format: lstm_layer [num_ts], [is_bias], [is_zero_first]
+    #   [num_ts]: number of timestep for lstm_layer
+    #   [is_bias]: bias to lsm
+    #   [is_zero]: set initial hidden state, cell state as zero
+    ret = []
+    gb_num_v_in = self.data_lib['gb_num_vector_in']
+    gb_num_v_out = self.data_lib['gb_num_vector_out']
+    # this output is after activations, not after pe_core
+    pe_num_v_out = gb_num_v_out >> 2
+
+    # set up PE related assembly
+    for pe_idx in range(4):
+      # set up pe_cfg_layer_sizing
+      # pe_cfg_rnn_layer_sizing [pe_idx], [is_zero], [is_cluster], [is_bias], [num_mngr], [num_v_out]
+      ret.append({
+        'name' : 'pe_cfg_rnn_layer_sizing',
+        'pe_idx' : pe_idx,
+        'is_zero' : asm['is_zero_first'],
+        'is_cluster' : 0,
+        'is_bias' : asm['is_bias'],
+        'num_mngr' : 2,
+        'num_v_out' : pe_num_v_out*4
+      })
+      # set up pe_cfg_mngr
+      # pe_cfg_mngr [pe_idx], [mngr_idx], [is_zero], [adpbias_wgt], [adpbias_bias], \
+      # [adpbias_inp], [num_v_in], [base_wgt], [base_bias], [base_inp]
+      # 1st one is for input states
+      ret.append({
+        'name' : 'pe_cfg_mngr',
+        'pe_idx' : pe_idx,
+        'mngr_idx' : 1,
+        'is_zero' : asm['is_zero_first'],
+        'adpbias_wgt' : self.data_lib['adpbias_wgt'],
+        'adpbias_bias' : self.data_lib['adpbias_bias'],
+        'adpbias_inp' : self.data_lib['adpbias_inp'],
+        'num_v_in' : gb_num_v_in,
+        'base_wgt' : 0x0,
+        'base_bias' : self.get_pe_base_bias_v_1(gb_num_v_in),
+        'base_inp' : 0x0
+      })
+      # 2nd one is for hidden states
+      ret.append({
+        'name' : 'pe_cfg_mngr',
+        'pe_idx' : pe_idx,
+        'mngr_idx' : 2,
+        'is_zero' : asm['is_zero_first'],
+        'adpbias_wgt' : self.data_lib['adpbias_wgt'],
+        'adpbias_bias' : self.data_lib['adpbias_bias'],
+        'adpbias_inp' : self.data_lib['adpbias_inp'],
+        'num_v_in' : gb_num_v_out,
+        'base_wgt' : self.get_pe_hidden_wgt_offset(gb_num_v_in, gb_num_v_out),
+        'base_bias' : self.get_pe_base_bias_v_2(gb_num_v_in, gb_num_v_out),
+        'base_inp' : self.get_pe_base_h_input(gb_num_v_in, gb_num_v_out)
+      })
+      # set up pe_cfg_act_mngr
+      # pe_cfg_act_mngr [pe_idx], [is_zero], [adpfloat_bias], [num_insn], [num_v_out], [buf_base], [out_base]
+      ret.append({
+        'name' : 'pe_cfg_act_mngr',
+        'pe_idx' : pe_idx,
+        'is_zero' : asm['is_zero_first'],
+        'adpfloat_bias' : self.data_lib['adpbias_pe_act'],
+        'num_insn' : 0x18,
+        'num_v_out' : pe_num_v_out,
+        'buf_base' : 0,
+        'out_base' : pe_idx * pe_num_v_out
+      })
+      # set up pe_config_v: micro instructions for pe_act
+      # this is fixed for a standard LSTM
+      # pe_cfg_act_v [pe_idx], [v_idx], [insn_0], ..., [insn_15]
+      # 1st vector instruction table
+      ret.append({
+        'name' : 'pe_cfg_act_v',
+        'pe_idx' : pe_idx,
+        'v_idx' : 1,
+        'insn_0' : '0x30',
+        'insn_1' : '0x34',
+        'insn_2' : '0x81',
+        'insn_3' : '0xa0',
+        'insn_4' : '0x34',
+        'insn_5' : '0x38',
+        'insn_6' : '0x86',
+        'insn_7' : '0xb4',
+        'insn_8' : '0x91',
+        'insn_9' : '0x34',
+        'insn_10' : '0x38',
+        'insn_11' : '0x86',
+        'insn_12' : '0xa4',
+        'insn_13' : '0x18',
+        'insn_14' : '0x96',
+        'insn_15' : '0x81'
+      })
+      ret.append({
+        'name' : 'pe_cfg_act_v',
+        'pe_idx' : pe_idx,
+        'v_idx' : 2,
+        'insn_0' : '0x20',
+        'insn_1' : '0xb0',
+        'insn_2' : '0x34',
+        'insn_3' : '0x38',
+        'insn_4' : '0x86',
+        'insn_5' : '0xa4',
+        'insn_6' : '0x91',
+        'insn_7' : '0x40'
+      })
+    
+    # set up gb related assembly
+    # set up gb_memory manager
+    num_ts = asm['num_ts']
+    # TODO: now set the output result to memory index 1 as default
+    base_addr_1 = self.get_gb_base_addr_1(num_ts, gb_num_v_in)
+    self.__gb_large_buf_mem_base[1] = base_addr_1 << 4
+
+    # set up gb_memory_manger_large
+    # cfg_mmngr_gb_large [base_0], [num_v_0] (, [base_1], [num_v_1], ..., [base_3], [num_v_3])
+    ret.append({
+      'name' : 'cfg_mmngr_gb_large',
+      'base_0' : hex(0x0),
+      'num_v_0' : gb_num_v_in,
+      'base_1' : hex(base_addr_1),
+      'num_v_1' : gb_num_v_out
+    })
+
+    # set up gb control configuration
+    # cfg_gb_ctrl [mode], [is_rnn], [mem_id_i], [mem_id_o], [num_v_i], [num_v_o], [num_ts]
+    ret.append({
+      'name' : 'cfg_gb_ctrl',
+      'mode' : 0,
+      'is_rnn' : 1,
+      'mem_id_i' : 0,
+      'mem_id_o' : 1,
+      'num_v_i' : gb_num_v_in,
+      'num_v_o' : gb_num_v_out,
+      'num_ts' : num_ts
+    })
+
+    # trigger start
+    ret.append({
+      'name' : 'start',
+      'op' : self.__GB_CONTROL_START
+    })
+
+    return ret
+

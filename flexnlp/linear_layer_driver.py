@@ -167,7 +167,7 @@ class linear_layer_driver:
       wgt_v_list = fin.read().splitlines()
     assert len(wgt_v_list) % 16 == 0
     self.data_lib = \
-      self.tl.wgt_to_data_lib(wgt_v_list, 'w0', self.num_v_in, self.num_v_out, self.data_lib)
+      self.tl.wgt_to_data_lib(wgt_v_list, 'w0', self.num_v_in*self.num_v_out, self.data_lib)
 
     with open('./test/inp_q_av.tmp', 'r') as fin:
       inp_v_list = fin.read().splitlines()

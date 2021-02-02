@@ -12,10 +12,10 @@ from utils import tool
 
 # define the graph
 dtype="float32"
-m = 64
+m = 32
 n = 64
 
-shape1 = tvm.relay.TensorType((n, m), dtype=dtype)
+shape1 = tvm.relay.TensorType((16, m), dtype=dtype)
 shape2 = tvm.relay.TensorType((n, m), dtype=dtype)
 shape3 = tvm.relay.TensorType((n, ), dtype=dtype)
 x = tvm.relay.var("x", shape1)
