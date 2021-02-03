@@ -82,11 +82,11 @@ class lstm_layer_driver:
     # input weight matrix dimension is (4 x output, input)
     # hidden weight matrix dimension is (4 x output, input)
     wgt_i_init = \
-      coef * np.random.uniform(0, 1, (4*16*self.num_v_out, 16*self.num_v_in)).astype(np.float32)
+      coef * np.random.uniform(-1, 1, (4*16*self.num_v_out, 16*self.num_v_in)).astype(np.float32)
     wgt_h_init = \
-      coef * np.random.uniform(0, 1, (4*16*self.num_v_out, 16*self.num_v_out)).astype(np.float32)
+      coef * np.random.uniform(-1, 1, (4*16*self.num_v_out, 16*self.num_v_out)).astype(np.float32)
     inp_init = \
-      coef * np.random.uniform(0, 1, (self.num_v_in * 16 * self.num_ts)).astype(np.float32)
+      coef * np.random.uniform(-1, 1, (self.num_v_in * 16 * self.num_ts)).astype(np.float32)
     print('(wgt_i, wgt_h, inp) shape is ({}, {}, {})'.format(
       wgt_i_init.shape, wgt_h_init.shape,
       tuple(t/self.num_ts for t in inp_init.shape)
@@ -100,6 +100,14 @@ class lstm_layer_driver:
     else:
       bias_i_init = np.zeros((4*self.num_v_out), dtype = np.float32)
       bias_h_init = np.zeros((4*self.num_v_out), dtype = np.float32)
+    
+    # initial cell state
+    if (self.is_zero_first):
+      self.cell_state_init = np.zeros(16*self.num_v_out, dtype = np.float32)
+      self.hidden_state_init = np.zeros(16*self.num_v_out, dtype = np.float32)
+    else:
+      self.cell_state_init = coef * np.random.uniform(-1, 1, (16*self.num_v_out)).astype(np.float32)
+      self.hidden_state_init = coef * np.random.uniform(-1, 1, (16*self.num_v_out)).astype(np.float32)
     
     self.wgt_i = wgt_i_init
     self.wgt_h = wgt_h_init
@@ -219,6 +227,62 @@ class lstm_layer_driver:
       json.dump(self.data_lib, fout, indent=4)
     print('\n*** data_lib has been dump to {}***\n'.format(out_path))
 
+  """
+  produce reference LSTM data
+  """
+  def get_lstm_cell_data(self, i2h_wgt, i2h_bias, h2h_wgt, h2h_bias):
+    self.W_ii = i2h_wgt[0 : 16*self.num_v_out, ]
+    self.W_if = i2h_wgt[16*self.num_v_out : 2*16*self.num_v_out, ]
+    self.W_ig = i2h_wgt[2*16*self.num_v_out : 3*16*self.num_v_out, ]
+    self.W_io = i2h_wgt[3*16*self.num_v_out : 4*16*self.num_v_out, ]
+
+    self.W_hi = h2h_wgt[0 : 16*self.num_v_out, ]
+    self.W_hf = h2h_wgt[16*self.num_v_out : 2*16*self.num_v_out, ]
+    self.W_hg = h2h_wgt[2*16*self.num_v_out : 3*16*self.num_v_out, ]
+    self.W_ho = h2h_wgt[3*16*self.num_v_out : 4*16*self.num_v_out, ]
+
+    self.b_ii = i2h_bias[0 : 16*self.num_v_out, ]
+    self.b_if = i2h_bias[16*self.num_v_out : 2*16*self.num_v_out, ]
+    self.b_ig = i2h_bias[2*16*self.num_v_out : 3*16*self.num_v_out, ]
+    self.b_io = i2h_bias[3*16*self.num_v_out : 4*16*self.num_v_out, ]
+
+    self.b_hi = h2h_bias[0 : 16*self.num_v_out, ]
+    self.b_hf = h2h_bias[16*self.num_v_out : 2*16*self.num_v_out, ]
+    self.b_hg = h2h_bias[2*16*self.num_v_out : 3*16*self.num_v_out, ]
+    self.b_ho = h2h_bias[3*16*self.num_v_out : 4*16*self.num_v_out, ]
+
+  def sigmoid(self, x):
+    return 1 / (1 + np.exp(-x))
+
+  def lstm_cell(self, input_state, prev_state, cell_state):
+    i_t = self.sigmoid(np.add(np.add(np.matmul(self.W_ii, input_state), self.b_ii), \
+                              np.add(np.matmul(self.W_hi, prev_state), self.b_hi)))
+    f_t = self.sigmoid(np.add(np.add(np.matmul(self.W_if, input_state), self.b_if), \
+                              np.add(np.matmul(self.W_hf, prev_state), self.b_hf)))
+    g_t = np.tanh(np.add(np.add(np.matmul(self.W_ig, input_state), self.b_ig), \
+                         np.add(np.matmul(self.W_hg, prev_state), self.b_hg)))
+    o_t = self.sigmoid(np.add(np.add(np.matmul(self.W_io, input_state), self.b_io), \
+                              np.add(np.matmul(self.W_ho, input_state), self.b_ho)))
+    cell_state = np.add(np.dot(f_t, prev_state), np.dot(i_t, g_t))
+    h_t = np.dot(o_t, np.tanh(cell_state))
+
+    return h_t, cell_state
+  
+
+  def produce_ref_result(self):
+    print('\n--------------------------------------------------------------')
+    print('\tproducing reference LSTM results')
+    print('--------------------------------------------------------------\n')
+    # initial cell state
+    cell_state = self.cell_state_init
+    hidden_state = self.hidden_state_init
+    self.get_lstm_cell_data(self.wgt_i, self.bias_i, self.wgt_h, self.bias_h)
+    self.ref_out = []
+    for t in range(self.num_ts):
+      input = self.inp[t*16*self.num_v_in : (t+1)*16*self.num_v_in, ]
+      hidden_state, cell_state = self.lstm_cell(input, hidden_state, cell_state)
+      self.ref_out.append(hidden_state)
+
   # -----------------------------------------
   # invode ILA simulation
   # -----------------------------------------
@@ -226,8 +290,8 @@ class lstm_layer_driver:
     print('\n--------------------------------------------------------------')
     print('\tgenerate prog_frag.json for ILA simulator')
     print('--------------------------------------------------------------\n')
-    ila_cvtr = cvtr('./test/lstm_asm.json', './test/lstm_data_lib.json')
-    ila_cvtr.dump_ila_prog_frag('./test/lstm_prog_frag_in.json')
+    self.ila_cvtr = cvtr('./test/lstm_asm.json', './test/lstm_data_lib.json')
+    self.ila_cvtr.dump_ila_prog_frag('./test/lstm_prog_frag_in.json')
     print('*** ILA program fragment has been dumped to ./test/lstm_prog_frag_in.json***\n')
   
   def invoke_ila_simulator(self):
@@ -247,3 +311,29 @@ class lstm_layer_driver:
                              1, self.num_ts, self.num_v_in, self.num_v_out, self.bias_act)
   
     self.result = np.fromfile('./test/lstm_float_result.tmp', sep = '\n')
+  
+  # --------------------------------------
+  # result analysis
+  # --------------------------------------
+  def result_analysis(self, is_verbose):
+    print('\n--------------------------------------------------------------')
+    print('\tanalyze ILA simulation result')
+    print('--------------------------------------------------------------\n')
+    for i in range(self.num_ts):
+      result_ts = self.result[self.num_v_out*16*i : self.num_v_out*16*(i+1)]
+      ref = self.ref_out[i]
+      
+      if is_verbose:
+        print("reference output: \n{}\nresult: \n{}\n".format(ref, result_ts))
+
+  # --------------------------------------
+  # dump axi commands
+  # --------------------------------------
+  def gen_axi_cmds(self):
+    print('\n--------------------------------------------------------------')
+    print('\tgenerate axi commands for FlexNLP')
+    print('--------------------------------------------------------------\n')
+    if not self.ila_cvtr:
+      self.ila_cvtr = cvtr('./test/lstm_asm.json', './test/lstm_data_lib.json')
+    self.ila_cvtr.dump_axi_cmds('./test/lstm_axi_cmd.csv')
+    print('*** axi commands has been dumped to ./test/lstm_axi_cmd.csv ***')

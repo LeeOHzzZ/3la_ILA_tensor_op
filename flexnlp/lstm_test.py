@@ -20,3 +20,6 @@ if __name__ == '__main__':
   test_driver.gen_prog_frag()
   test_driver.invoke_ila_simulator()
   test_driver.get_ila_sim_result()
+  test_driver.gen_axi_cmds()
+  test_driver.produce_ref_result()
+  test_driver.result_analysis(1)

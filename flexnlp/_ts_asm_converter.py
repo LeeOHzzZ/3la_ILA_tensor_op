@@ -425,7 +425,7 @@ class ts_asm_converter:
         'name' : 'pe_cfg_mngr',
         'pe_idx' : pe_idx,
         'mngr_idx' : 1,
-        'is_zero' : asm['is_zero_first'],
+        'is_zero' : 0,
         'adpbias_wgt' : self.data_lib['adpbias_wgt'],
         'adpbias_bias' : self.data_lib['adpbias_bias'],
         'adpbias_inp' : self.data_lib['adpbias_inp'],
