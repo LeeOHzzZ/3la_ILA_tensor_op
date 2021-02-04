@@ -273,5 +273,5 @@ if __name__ == '__main__':
 
   driver = linear_layer_driver(num_v_in, num_v_out, num_ts, is_bias)
   driver.run()
-  driver.result_analysis(0)
+  # driver.result_analysis(0)
   driver.clean_up()

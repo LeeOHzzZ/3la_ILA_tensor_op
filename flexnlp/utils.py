@@ -14,14 +14,10 @@ FLEXNLP_GBCORE_NUM_BANKS = 16
 
 class tool:
   def __init__(self):
-    # self.num_vector_in = config['num_vector_in']
-    # self.num_vector_out = config['num_vector_out']
-    # self.
     pass
   
   def cal_error(self, result, ref):
     diff = result - ref
-    print("diff size: {}".format(diff.size))
     abs_diff = np.abs(diff)
     mean_diff = np.sum(abs_diff) / (diff.size)
     # print(result.size, ref.size)
