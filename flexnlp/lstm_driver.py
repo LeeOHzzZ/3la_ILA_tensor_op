@@ -240,6 +240,7 @@ class lstm_layer_driver:
     print('*** axi commands has been dumped to ./test/lstm_axi_cmd.csv ***')
 
   def run_test(self, use_relay, verbose_analysis):
+    subprocess.run(['mkdir', '-p', 'npy', 'test', 'data'])
     self.produce_lstm_asm()
     self.produce_random_test_data()
     self.produce_lstm_data_lib()

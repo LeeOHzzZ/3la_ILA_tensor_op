@@ -7,8 +7,11 @@ flexnlp-ila tensor assembly --> flexnlp-ila assembly --> flexnlp-ila program fra
 ### Run the test flow
 ```bash
 python3 linear_layer_test.py [num_vector_in] [num_vector_out] [num_timestep] [is_bias]
-# example: python3 linear_layer_test.py 16 4 10 1
-# [num_vector_out] must be integer multiple of 4
+python3 lstm_test.py [num_vector_in] [num_vector_out] [num_timestep] [is_bias] [is_zero_first]
+# example 1: python3 linear_layer_test.py 16 4 10 1
+#   [num_vector_out]: must be integer multiple of 4
+# example 2: python3 lstm_test.py 4 4 1 1 1
+#   [is_zero_first]: If true, the initial cell state and hidden state would be zero
 ```
 ---
 
@@ -25,6 +28,7 @@ python3 linear_layer_test.py [num_vector_in] [num_vector_out] [num_timestep] [is
 - Operation
   - `maxp [num_ts]`
   - `linear_layer [num_ts], [is_bias]`
+  - `lstm_layer [num_ts], [is_bias], [is_zero_first]`
 
 ---
 

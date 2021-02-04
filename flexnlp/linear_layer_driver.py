@@ -237,7 +237,7 @@ class linear_layer_driver:
         print("reference output: \n{}\nresult: \n{}\n".format(ref, result_ts))
 
   def run(self):
-    subprocess.run(['mkdir', '-p', 'npy', 'test'])
+    subprocess.run(['mkdir', '-p', 'npy', 'test', 'data'])
     self.collect_data()
     self.produce_ref_result()
     self.produce_ly_data_lib()
@@ -250,7 +250,7 @@ class linear_layer_driver:
     self.result.tofile('./data/result.txt', sep = '\n')
   
   def run_test(self):
-    subprocess.run(['mkdir', '-p', 'npy', 'test'])
+    subprocess.run(['mkdir', '-p', 'npy', 'test', 'data'])
     self.produce_linear_layer_test()
     self.gen_prog_frag()
     self.invoke_ila_simulator()
