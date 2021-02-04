@@ -79,14 +79,15 @@ def lstm_layer(inp, num_hidden,
                         time_dim_width, time_axis)
     )
 
-def main():
+def relay_lstm_ref(num_v_in, num_v_out, num_ts, 
+                   input, wgt_i, wgt_h, bias_i, bias_h):
     # need to instantiate weights and bias to run
+    assert num_v_in == num_v_out
 
     dtype = 'float32'
-    num_hidden = 64
+    num_hidden = num_v_out * 16
     batch_size = 1
-    time_dim_width = 10
-
+    time_dim_width = num_ts
     # now set up all the input values
     builder = relay.ScopeBuilder()
     input_shape = (batch_size, time_dim_width, num_hidden)
@@ -94,15 +95,25 @@ def main():
     weight_shape = (4 * num_hidden, num_hidden)
     bias_shape = (4 * num_hidden, )
 
-    inp = builder.let('inp', relay.const(np.random.rand(*input_shape)))
-    i2h_weight = builder.let('i2h_weight', relay.const(np.random.rand(*weight_shape)))
-    h2h_weight = builder.let('h2h_weight', relay.const(np.random.rand(*weight_shape)))
-    i2h_bias = builder.let('i2h_bias', relay.const(np.random.rand(*bias_shape)))
-    h2h_bias = builder.let('h2h_bias', relay.const(np.random.rand(*bias_shape)))
+    # inp = builder.let('inp', relay.const(np.random.rand(*input_shape)))
+    # i2h_weight = builder.let('i2h_weight', relay.const(np.random.rand(*weight_shape)))
+    # h2h_weight = builder.let('h2h_weight', relay.const(np.random.rand(*weight_shape)))
+    # i2h_bias = builder.let('i2h_bias', relay.const(np.random.rand(*bias_shape)))
+    # h2h_bias = builder.let('h2h_bias', relay.const(np.random.rand(*bias_shape)))
     init_states = builder.let('init_states', relay.Tuple([
         relay.zeros(inner_input_shape, dtype),
         relay.zeros(inner_input_shape, dtype)
     ]))
+
+    # convert np arrays to tvm.nd.array
+    inp = input.reshape((num_ts, 16*num_v_in))
+    inp = np.expand_dims(inp, axis=0)
+    inp = builder.let('inp', relay.const(inp))
+    i2h_weight = builder.let('i2h_weight', relay.const(wgt_i))
+    h2h_weight = builder.let('h2h_weight', relay.const(wgt_h))
+    i2h_bias = builder.let('i2h_bias', relay.const(bias_i))
+    h2h_bias = builder.let('h2h_bias', relay.const(bias_h))
+
 
     builder.ret(
       lstm_layer(
@@ -113,13 +124,20 @@ def main():
     mod = IRModule.from_expr(builder.get())
 #    print(mod)
 
-    with tvm.transform.PassContext(opt_level=2):
-        lib = relay.build(mod, 'llvm')
+    target = 'llvm'
+    args = ()
     ctx = tvm.cpu(0)
-    m = graph_runtime.GraphModule(lib["default"](ctx))
-    for i in range(m.get_num_outputs()):
-        print(m.get_output(i).asnumpy().shape)
+    with tvm.transform.PassContext(opt_level=3):
+        exe = relay.vm.compile(mod, target)
+        vm = tvm.runtime.vm.VirtualMachine(exe, ctx)
+        out = vm.invoke("main", *args)
+    
+    out_np = out.asnumpy()
+    # print(out_np.shape)
+    # print(out_np)
+    return out_np
 
 
-if __name__ == '__main__':
-    main()
+
+# if __name__ == '__main__':
+#     relay_lstm_ref()

@@ -233,7 +233,39 @@ class ts_asm_converter:
     #   [bias_idx]: bias vector symbol
     # description:
     #   store input bias into PE for RNN operation
-    return self.gen_store_bias(asm)
+    bias_idx = asm['bias_idx']
+    num_v_in = self.data_lib['gb_num_vector_in']
+    num_v_out_gb = self.data_lib['gb_num_vector_out']
+    num_v_out_pe = int(num_v_out_gb/4)
+    # use num_v_out_gb for this function
+    # pe would store the whole input timestep into PE input buffer
+    base_bias = self.get_pe_base_bias_v_1(num_v_in) * 16 # byte level address
+    ret = []
+    # for pe_idx in range(4):
+    #   for v in range(4*num_v_out_pe):
+    #     addr = 0x34600000 + pe_idx * 0x01000000 + base_bias + v*16
+    #     bias_v_idx = pe_idx + v * 4 * num_v_out_pe
+    #     print(bias_v_idx, pe_idx, v)
+    #     # v_name = bias_idx + '.' + str(bias_v_idx)
+    #     v_name = '{}.{}'.format(bias_idx, bias_v_idx)
+    #     ret.append({
+    #       'name' : 'write_v',
+    #       'vector_name' : v_name,
+    #       'addr' : hex(addr)
+    #     })
+    for pe_idx in range(4):
+      for s_idx in range(4):
+        for v in range(num_v_out_pe):
+          addr = 0x34600000 + pe_idx * 0x01000000 + base_bias + (s_idx*num_v_out_pe + v)*16
+          bias_v_idx = pe_idx*num_v_out_pe + s_idx*num_v_out_gb + v
+          v_name = '{}.{}'.format(bias_idx, bias_v_idx)
+          print(bias_v_idx, pe_idx, s_idx, v)
+          ret.append({
+            'name' : 'write_v',
+            'vector_name' : v_name,
+            'addr' : hex(addr)
+          })
+    return ret
   
   def gen_store_bias_h(self, asm):
     # format: store_bias_h [bias_idx]
@@ -248,17 +280,28 @@ class ts_asm_converter:
     # pe would store the whole input timestep into PE input buffer
     base_bias = self.get_pe_base_bias_v_2(num_v_in, num_v_out_gb) * 16 # byte level address
     ret = []
+    # for pe_idx in range(4):
+    #   for v in range(4*num_v_out_pe):
+    #     addr = 0x34600000 + pe_idx * 0x01000000 + base_bias + v*16
+    #     bias_v_idx = pe_idx + v * 4 * num_v_out_pe
+    #     # v_name = bias_idx + '.' + str(bias_v_idx)
+    #     v_name = '{}.{}'.format(bias_idx, bias_v_idx)
+    #     ret.append({
+    #       'name' : 'write_v',
+    #       'vector_name' : v_name,
+    #       'addr' : hex(addr)
+    #     })
     for pe_idx in range(4):
-      for v in range(num_v_out_pe):
-        addr = 0x34600000 + pe_idx * 0x01000000 + base_bias + v*16
-        bias_v_idx = pe_idx * num_v_out_pe + v
-        # v_name = bias_idx + '.' + str(bias_v_idx)
-        v_name = '{}.{}'.format(bias_idx, bias_v_idx)
-        ret.append({
-          'name' : 'write_v',
-          'vector_name' : v_name,
-          'addr' : hex(addr)
-        })
+      for s_idx in range(4):
+        for v in range(num_v_out_pe):
+          addr = 0x34600000 + pe_idx * 0x01000000 + base_bias + (s_idx*num_v_out_pe + v)*16
+          bias_v_idx = pe_idx*num_v_out_pe + s_idx*num_v_out_gb + v
+          v_name = '{}.{}'.format(bias_idx, bias_v_idx)
+          ret.append({
+            'name' : 'write_v',
+            'vector_name' : v_name,
+            'addr' : hex(addr)
+          })
     return ret
 
   # ------------------------------------------

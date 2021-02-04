@@ -21,10 +21,11 @@ class tool:
   
   def cal_error(self, result, ref):
     diff = result - ref
+    print("diff size: {}".format(diff.size))
     abs_diff = np.abs(diff)
     mean_diff = np.sum(abs_diff) / (diff.size)
     # print(result.size, ref.size)
-    return mean_diff/np.mean(result), mean_diff/np.mean(ref)
+    return mean_diff/np.mean(np.abs(result)), mean_diff/np.mean(np.abs(ref))
 
   def get_adpfloat_bias(self, array):
     """
@@ -94,11 +95,11 @@ class tool:
     # flexnlp bias arrangement is (b_i, b_g, b_f, b_o)
     assert bias_in.shape == (4*16*num_v, ), \
       'lstm_bias_reshape: bias shape should be {} instead of {}'.format((4*16*num_v, ), bias_in.shape)
-    sub_len = 16*num_v
-    B_i = bias_in[0 : sub_len, ]
-    B_f = bias_in[sub_len : 2*sub_len, ]
-    B_g = bias_in[2*sub_len : 3*sub_len, ]
-    B_o = bias_in[3*sub_len : 4*sub_len, ]
+    bias_in = bias_in.reshape((4, 16*num_v))
+    B_i = bias_in[0, ]
+    B_f = bias_in[1, ]
+    B_g = bias_in[2, ]
+    B_o = bias_in[3, ]
 
     return np.concatenate((B_i, B_g, B_f, B_o))
     
