@@ -103,17 +103,12 @@ class linear_layer_driver:
     # -------------------------
     # get reference output
     # -------------------------
+    self.ref = []
     for i in range(self.num_ts):
       inp_ts = self.inp[self.num_v_in*16*i : self.num_v_in*16*(i+1)]
-      # print(inp_ts.shape)
-      # print(self.wgt.shape)
-
       ref = np.add(np.matmul(self.wgt, inp_ts), self.bias)
-      ref.tofile('./test/ref_{}.tmp'.format(i), sep = '\n')
-      # print("reference output No.{}".format(i))
-      # print(ref)
+      self.ref.append(ref)
       ref_q, bias_act = self.tl.get_adpfloat_bias(ref)
-      # print("bias_act is {}\n".format(bias_act + 10))
       self.bias_act = bias_act
 
   def produce_ly_data_lib(self):
@@ -143,6 +138,10 @@ class linear_layer_driver:
       'adpbias_pe_act' : self.bias_act,
       'w0_num_tile' : int(self.num_v_in * self.num_v_out),
     }
+
+    self.wgt = wgt_q
+    self.inp = inp_q
+    self.bias = bias_q
 
     print('\n--------------------------------------------------------------')
     print('\tinvoking float to adpfloat converter')
@@ -230,8 +229,7 @@ class linear_layer_driver:
     print('--------------------------------------------------------------\n')
     for i in range(self.num_ts):
       result_ts = self.result[self.num_v_out*16*i : self.num_v_out*16*(i+1)]
-      # print(result_ts)
-      ref = np.fromfile('./test/ref_{}.tmp'.format(i), sep = '\n')
+      ref = self.ref[i]
       err_out, err_ref = self.tl.cal_error(result_ts, ref)
       print("result timestep No.{} --- relative error (vs. sim_out): {:5.5%}\
             relative error (vs. ref): {:5.5%}\n".format(i, err_out, err_ref))

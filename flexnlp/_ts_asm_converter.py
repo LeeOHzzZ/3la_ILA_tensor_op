@@ -44,19 +44,33 @@ class ts_asm_converter:
 
   def get_pe_base_bias_v_1(self, num_v):
     # get bias base address in pe input buffer (vector level address)
-    return num_v + 0x1
+    return num_v
   
   def get_pe_base_bias_v_2(self, num_v_in, num_v_out):
     # get bias base address in pe input buffer for hidden state (vector level addr)
-    return self.get_pe_base_h_input(num_v_in, num_v_out) + num_v_out + 0x1
+    return self.get_pe_base_h_input(num_v_in, num_v_out) + num_v_out
   
   def get_pe_base_h_input(self, num_v_in, num_v_out):
     # get base address for hidden state input in the PE input buffer (vector level addr)
-    return self.get_pe_base_bias_v_1(num_v_in) + num_v_out + 0x1
+    return self.get_pe_base_bias_v_1(num_v_in) + num_v_out
     
   def get_gb_base_addr_1(self, num_ts, num_v_in):
     # get base address for gb large buffer of memory index 1 (vector_level)
     return int(num_ts/16 + 2) * 16 * num_v_in  
+  
+  def gen_store_bias_helper(self, bias_idx, base_addr, num_v_bias):
+    ret = []
+    for pe_idx in range(4):
+      for v in range(num_v_bias):
+        addr = 0x34600000 + pe_idx * 0x01000000 + base_addr + v*16
+        bias_v_idx = pe_idx * num_v_bias + v
+        v_name = '{}.{}'.format(bias_idx, bias_v_idx)
+        ret.append({
+          'name' : 'write_v',
+          'vector_name' : v_name,
+          'addr' : hex(addr)
+        })
+    return ret
   # ==================================================================
   # ================================================================== 
   def generate_ila_asm(self, asm):
@@ -123,7 +137,7 @@ class ts_asm_converter:
       })
     return ret
 
-  def gen_store_wgt(self, asm):
+  def gen_store_wgt(self, asm, addr_offset = 0):
     # format: store_wgt [wgt_idx]
     #   [weight_idx]: weight matrix symbol
     # description: 
@@ -137,7 +151,7 @@ class ts_asm_converter:
     for t in range(num_tiles):
       pe_idx = int(t/(num_tiles/4))
       pe_base_addr = 0x34500000 + pe_idx*0x01000000
-      tile_base_addr = pe_base_addr + (t%int(num_tiles/4))*16*16
+      tile_base_addr = pe_base_addr + addr_offset + (t%int(num_tiles/4))*16*16
       for v in range(16):
         v_name = '{}.t{}.{}'.format(wgt_idx, t, v)
         addr = tile_base_addr + v*16
@@ -161,21 +175,9 @@ class ts_asm_converter:
     num_v_in = self.data_lib['gb_num_vector_in']
     # num_v_out are different for gb and pe
     num_v_out_gb = self.data_lib['gb_num_vector_out']
-    num_v_out_pe = int(num_v_out_gb/4)
+    num_v_out_pe = num_v_out_gb >> 2
     base_bias = self.get_pe_base_bias_v_1(num_v_in) * 16 # byte level address
-    ret = []
-    for pe_idx in range(4):
-      for v in range(num_v_out_pe):
-        addr = 0x34600000 + pe_idx * 0x01000000 + base_bias + v*16
-        bias_v_idx = pe_idx * num_v_out_pe + v
-        # v_name = bias_idx + '.' + str(bias_v_idx)
-        v_name = '{}.{}'.format(bias_idx, bias_v_idx)
-        ret.append({
-          'name' : 'write_v',
-          'vector_name' : v_name,
-          'addr' : hex(addr)
-        })
-    return ret
+    return self.gen_store_bias_helper(bias_idx, base_bias, num_v_out_pe)
 
   def gen_load_act(self, asm):
     # format: load_act [mem_idx], [ts_idx]
@@ -207,26 +209,10 @@ class ts_asm_converter:
     #   [wgt_idx]: string, weight matrix symbol
     # description:
     #   store weight for hidden states for RNN operation
-    wgt_idx = asm['wgt_idx']
-    num_tiles = self.data_lib[wgt_idx + '_num_tile']
-    ret = []
-    for t in range(num_tiles):
-      pe_idx = int(t/(num_tiles/4))
-      pe_base_addr = 0x34500000 + pe_idx*0x01000000
-      num_v_in = self.data_lib['gb_num_vector_in']
-      num_v_out = self.data_lib['gb_num_vector_out']
-      addr_offset = 16 * self.get_pe_hidden_wgt_offset(num_v_in, num_v_out)
-      tile_base_addr = pe_base_addr + addr_offset + (t%int(num_tiles/4))*16*16
-      for v in range(16):
-        # v_name = wgt_idx + '.t' + str(t) + '.' + str(v)
-        v_name = '{}.t{}.{}'.format(wgt_idx, t, v)
-        addr = tile_base_addr + v*16
-        ret.append({
-          'name' : 'write_v',
-          'vector_name' : v_name,
-          'addr' : hex(addr)
-        })
-    return ret
+    num_v_in = self.data_lib['gb_num_vector_in']
+    num_v_out = self.data_lib['gb_num_vector_out']
+    addr_offset = 16 * self.get_pe_hidden_wgt_offset(num_v_in, num_v_out)
+    return self.gen_store_wgt(asm, addr_offset = addr_offset)
   
   def gen_store_bias_i(self, asm):
     # format: store_bias_i [bias_idx]
@@ -236,36 +222,12 @@ class ts_asm_converter:
     bias_idx = asm['bias_idx']
     num_v_in = self.data_lib['gb_num_vector_in']
     num_v_out_gb = self.data_lib['gb_num_vector_out']
-    num_v_out_pe = int(num_v_out_gb/4)
+    # num_v_out_pe = int(num_v_out_gb/4)
+    num_v_bias_pe = num_v_out_gb
     # use num_v_out_gb for this function
     # pe would store the whole input timestep into PE input buffer
     base_bias = self.get_pe_base_bias_v_1(num_v_in) * 16 # byte level address
-    ret = []
-    # for pe_idx in range(4):
-    #   for v in range(4*num_v_out_pe):
-    #     addr = 0x34600000 + pe_idx * 0x01000000 + base_bias + v*16
-    #     bias_v_idx = pe_idx + v * 4 * num_v_out_pe
-    #     print(bias_v_idx, pe_idx, v)
-    #     # v_name = bias_idx + '.' + str(bias_v_idx)
-    #     v_name = '{}.{}'.format(bias_idx, bias_v_idx)
-    #     ret.append({
-    #       'name' : 'write_v',
-    #       'vector_name' : v_name,
-    #       'addr' : hex(addr)
-    #     })
-    for pe_idx in range(4):
-      for s_idx in range(4):
-        for v in range(num_v_out_pe):
-          addr = 0x34600000 + pe_idx * 0x01000000 + base_bias + (s_idx*num_v_out_pe + v)*16
-          bias_v_idx = pe_idx*num_v_out_pe + s_idx*num_v_out_gb + v
-          v_name = '{}.{}'.format(bias_idx, bias_v_idx)
-          print(bias_v_idx, pe_idx, s_idx, v)
-          ret.append({
-            'name' : 'write_v',
-            'vector_name' : v_name,
-            'addr' : hex(addr)
-          })
-    return ret
+    return self.gen_store_bias_helper(bias_idx, base_bias, num_v_bias_pe)
   
   def gen_store_bias_h(self, asm):
     # format: store_bias_h [bias_idx]
@@ -275,34 +237,11 @@ class ts_asm_converter:
     bias_idx = asm['bias_idx']
     num_v_in = self.data_lib['gb_num_vector_in']
     num_v_out_gb = self.data_lib['gb_num_vector_out']
-    num_v_out_pe = int(num_v_out_gb/4)
+    num_v_bias_pe = num_v_out_gb
     # use num_v_out_gb for this function
     # pe would store the whole input timestep into PE input buffer
     base_bias = self.get_pe_base_bias_v_2(num_v_in, num_v_out_gb) * 16 # byte level address
-    ret = []
-    # for pe_idx in range(4):
-    #   for v in range(4*num_v_out_pe):
-    #     addr = 0x34600000 + pe_idx * 0x01000000 + base_bias + v*16
-    #     bias_v_idx = pe_idx + v * 4 * num_v_out_pe
-    #     # v_name = bias_idx + '.' + str(bias_v_idx)
-    #     v_name = '{}.{}'.format(bias_idx, bias_v_idx)
-    #     ret.append({
-    #       'name' : 'write_v',
-    #       'vector_name' : v_name,
-    #       'addr' : hex(addr)
-    #     })
-    for pe_idx in range(4):
-      for s_idx in range(4):
-        for v in range(num_v_out_pe):
-          addr = 0x34600000 + pe_idx * 0x01000000 + base_bias + (s_idx*num_v_out_pe + v)*16
-          bias_v_idx = pe_idx*num_v_out_pe + s_idx*num_v_out_gb + v
-          v_name = '{}.{}'.format(bias_idx, bias_v_idx)
-          ret.append({
-            'name' : 'write_v',
-            'vector_name' : v_name,
-            'addr' : hex(addr)
-          })
-    return ret
+    return self.gen_store_bias_helper(bias_idx, base_bias, num_v_bias_pe)
 
   # ------------------------------------------
   # op assembly

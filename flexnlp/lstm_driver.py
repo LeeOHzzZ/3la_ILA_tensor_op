@@ -121,6 +121,16 @@ class lstm_layer_driver:
     self.data_lib_to_adpfloat(wgt_i_qt, wgt_h_qt, inp_q, bias_i_qr, bias_h_qr)
     self.gen_data_lib_helper(param, './test/lstm_data_lib.json')
 
+    """
+    change the original data to quantized data, for better result matching when calculating 
+    reference
+    """
+    self.wgt_i = wgt_i_q
+    self.wgt_h = wgt_h_q
+    self.inp = inp_q
+    self.bias_i = bias_i_q
+    self.bias_h = bias_h_q
+
 
   def data_lib_to_adpfloat(self, wgt_i, wgt_h, inp, bias_i, bias_h):
     print('\n--------------------------------------------------------------')
@@ -194,6 +204,7 @@ class lstm_layer_driver:
     print('\tgenerate prog_frag.json for ILA simulator')
     print('--------------------------------------------------------------\n')
     self.ila_cvtr = cvtr('./test/lstm_asm.json', './test/lstm_data_lib.json')
+    self.ila_cvtr.dump_ila_asm('./test/lstm_ila_asm.json')
     self.ila_cvtr.dump_ila_prog_frag('./test/lstm_prog_frag_in.json')
     print('*** ILA program fragment has been dumped to ./test/lstm_prog_frag_in.json***\n')
   
@@ -235,7 +246,7 @@ class lstm_layer_driver:
     self.gen_prog_frag()
     self.invoke_ila_simulator()
     self.get_ila_sim_result()
-    # self.gen_axi_cmds()
+    self.gen_axi_cmds()
     self.produce_ref_result(use_relay)
     self.result_analysis(verbose_analysis)
 
@@ -272,7 +283,6 @@ class lstm_layer_driver:
         coef * np.random.uniform(-1, 1, (4*16*self.num_v_out)).astype(np.float32)
       bias_h_init = \
         coef * np.random.uniform(-1, 1, (4*16*self.num_v_out)).astype(np.float32)
-
     else:
       bias_i_init = np.zeros((4*16*self.num_v_out), dtype = np.float32)
       bias_h_init = np.zeros((4*16*self.num_v_out), dtype = np.float32)
@@ -319,6 +329,7 @@ class lstm_layer_driver:
     self.b_hf = h2h_bias[1, ]
     self.b_hg = h2h_bias[2, ]
     self.b_ho = h2h_bias[3, ]
+
 
   def sigmoid(self, x):
     return 1 / (1 + np.exp(-x))
@@ -381,3 +392,8 @@ class lstm_layer_driver:
             relative error (vs. ref): {:5.5%}\n".format(i, err_out, err_ref))
       if is_verbose:
         print("reference output: \n{}\nresult: \n{}\n".format(ref, result_ts))
+
+  def clean_up(self):
+    for file in os.listdir('./test'):
+      if '.tmp' in file:
+        subprocess.run(['rm', './test/'+file])

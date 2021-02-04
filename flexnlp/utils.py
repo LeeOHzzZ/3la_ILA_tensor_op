@@ -101,7 +101,18 @@ class tool:
     B_g = bias_in[2, ]
     B_o = bias_in[3, ]
 
-    return np.concatenate((B_i, B_g, B_f, B_o))
+    num_v_out_pe = num_v >> 2
+    ret = []
+
+    for pe_idx in range(4):
+      for out_idx in range(num_v_out_pe):
+        idx_head = (pe_idx*num_v_out_pe + out_idx)*16
+        idx_end = idx_head + 16
+        ret.append(B_i[idx_head : idx_end])
+        ret.append(B_g[idx_head : idx_end])
+        ret.append(B_f[idx_head : idx_end])
+        ret.append(B_o[idx_head : idx_end])
+    return np.concatenate(ret)
     
   
   def wgt_to_data_lib(self, wgt, wgt_id, num_tile, data_lib):
