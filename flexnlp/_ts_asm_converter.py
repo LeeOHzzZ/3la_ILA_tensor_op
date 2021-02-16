@@ -79,7 +79,7 @@ class ts_asm_converter:
     """
     asm_types = ['store_act', 'store_wgt', 'store_bias', 'load_act']
     asm_types += ['store_wgt_i', 'store_wgt_h', 'store_bias_i', 'store_bias_h']
-    asm_types += ['maxp', 'linear_layer', 'lstm_layer']
+    asm_types += ['maxp', 'meanp','linear_layer', 'lstm_layer']
     # this instruction added for simulation
     asm_types += ['wait_irq']
     assert asm['name'] in asm_types, "{} is a not supported ILA assembly".format(asm['name'])
@@ -103,8 +103,8 @@ class ts_asm_converter:
     if asm['name'] == 'store_bias_h':
       return self.gen_store_bias_h(asm)
 
-    if asm['name'] == "maxp":
-      return self.gen_maxp(asm)
+    if asm['name'] in ('maxp', 'meanp'):
+      return self.gen_pooling(asm)
     if asm['name'] == 'linear_layer':
       return self.gen_linear_layer(asm)
     if asm['name'] == 'lstm_layer':
@@ -246,8 +246,8 @@ class ts_asm_converter:
   # ------------------------------------------
   # op assembly
   # ------------------------------------------
-  def gen_maxp(self, asm):
-    # format: maxp [num_ts]
+  def gen_pooling(self, asm):
+    # format: maxp/meanp [num_ts]
     # [num_ts]: number of timesteps to maxpooled in the FlexNLP GB large buffer
     # Assumption: 
     #   timestep dimension is given in the data_lib file
@@ -261,7 +261,7 @@ class ts_asm_converter:
     # set up gb layer reduce configuration
     ret.append({
       'name' : 'cfg_ly_reduce',
-      'mode' : 0,
+      'mode' : 0 if asm['name'] == 'maxp' else 1,
       'mem_idx' : 0,
       'num_v' : self.data_lib['gb_num_vector_in'],
       'num_ts' : asm['num_ts']

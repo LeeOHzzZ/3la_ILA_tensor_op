@@ -13,7 +13,7 @@ if __name__ == '__main__':
   is_zero_first = int(sys.argv[5])
 
   test_driver = driver(num_v_in, num_v_out, num_ts, is_bias, is_zero_first)
-  use_relay = 0
-  verbose_analysis = 1
+  use_relay = 1
+  verbose_analysis = 0
   test_driver.run_test(use_relay, verbose_analysis)
   test_driver.clean_up()

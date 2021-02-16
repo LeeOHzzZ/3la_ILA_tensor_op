@@ -4,7 +4,6 @@ import numpy as np
 import subprocess
 import os
 
-from relay_lstm import relay_lstm_ref
 from utils import tool as tool
 from converter import Converter as cvtr
 
@@ -359,7 +358,7 @@ class lstm_layer_driver:
     hidden_state = self.hidden_state_init
 
     if use_relay:
-      ref = relay_lstm_ref(self.num_v_in, self.num_v_out, self.num_ts,
+      ref = self.tl.get_relay_lstm_ref(self.num_v_in, self.num_v_out, self.num_ts,
                             self.inp, self.wgt_i, self.wgt_h, self.bias_i, self.bias_h)
       self.ref_out = []
       for t in range(self.num_ts):

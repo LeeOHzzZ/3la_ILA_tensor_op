@@ -8,6 +8,7 @@ import numpy as np
 
 sys.path.append('./tool')
 from adaptivfloat import quantize_floatext
+from relay_lstm import relay_lstm_ref
 
 FLEXNLP_VECTOR_SIZE = 16
 FLEXNLP_GBCORE_NUM_BANKS = 16
@@ -28,6 +29,14 @@ class tool:
     return the quantized matrix and adpfloat bias
     """
     return quantize_floatext(array)
+  
+  def get_relay_lstm_ref(self, num_v_in, num_v_out, num_ts,
+                         inp, wgt_i, wgt_h, bias_i, bias_h):
+    """
+    return relay lstm reference data
+    """
+    return relay_lstm_ref(num_v_in, num_v_out, num_ts,
+                          inp, wgt_i, wgt_h, bias_i, bias_h)
   
   def wgt_tiling(self, wgt_in, num_v_in, num_v_out):
     """
@@ -162,7 +171,8 @@ class tool:
     with open(in_path, 'r') as fin:
       v_data = json.load(fin)
     data_list = []
-    mem_base = self.get_gb_base_addr_1(num_ts, num_vi)*16 # byte level address
+    # mem_base = self.get_gb_base_addr_1(num_ts, num_vi)*16 # byte level address
+    mem_base = 0 if mem_idx == 0 else self.get_gb_base_addr_1(num_ts, num_vi)*16
 
     for ts_idx in range(num_ts):
       for v_idx in range(num_vo):
