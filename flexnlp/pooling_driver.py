@@ -64,7 +64,13 @@ class pooling_layer_driver:
       'adpbias_inp' : self.bias_inp
     }
 
-    self.data_lib_to_adpfloat(inp_q)
+    print('\n--------------------------------------------------------------')
+    print('\tinvoking float to adpfloat converter')
+    print('--------------------------------------------------------------\n')
+
+    inp_q.tofile('./test/inp_q.tmp', sep = '\n')
+    self.tl.call_float_adpt_v_cvtr('./test/inp_q.tmp', self.bias_inp, './test/inp_q_av.tmp')
+
     self.gen_data_lib_helper(param, './test/pooling_data_lib.json')
 
     """
@@ -72,14 +78,6 @@ class pooling_layer_driver:
     """
     self.inp = inp_q
 
-  def data_lib_to_adpfloat(self, inp):
-    print('\n--------------------------------------------------------------')
-    print('\tinvoking float to adpfloat converter')
-    print('--------------------------------------------------------------\n')
-
-    inp.tofile('./test/inp_q.tmp', sep = '\n')
-    self.tl.call_float_adpt_v_cvtr('./test/inp_q.tmp', self.bias_inp, './test/inp_q_av.tmp')
-  
   def gen_data_lib_helper(self, param, out_path):
     """
     produce data_lib for pooling
@@ -90,7 +88,7 @@ class pooling_layer_driver:
     assert len(inp_v_list) == self.num_v_in * self.num_ts
     for t in range(self.num_ts):
       self.data_lib = \
-        self.tl.vector_to_data_lib(inp_v_list[t*self.num_v_in : (t+1)*self.num_v_in], \
+        self.tl.vector_to_data_lib(inp_v_list[t*self.num_v_in : (t+1)*self.num_v_in], 
                                    'ts_{}'.format(t), self.num_v_in, self.data_lib)
     with open(out_path, 'w') as fout:
       json.dump(self.data_lib, fout, indent=4)
@@ -98,7 +96,7 @@ class pooling_layer_driver:
 
 
   # -----------------------------------------
-  # invode ILA simulation
+  # invoke ILA simulation
   # -----------------------------------------
   def gen_prog_frag(self):
     print('\n--------------------------------------------------------------')

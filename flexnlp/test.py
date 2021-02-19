@@ -3,6 +3,7 @@ import sys
 from linear_layer_driver import linear_layer_driver
 from lstm_driver import lstm_layer_driver
 from pooling_driver import pooling_layer_driver
+from layernorm_driver import layernorm_driver
 
 def test_lstm():
   assert len(sys.argv) == 7, \
@@ -42,9 +43,18 @@ def test_pooling():
   test_driver.run_test(verbose_analysis)
   test_driver.clean_up()
 
+def test_layernorm():
+  assert len(sys.argv) == 4, \
+    "Usage: python3 test.py layernorm [num_vector_in] [num_timestep]"
+  num_v = int(sys.argv[2])
+  num_ts = int(sys.argv[3])
+  test_driver = layernorm_driver(num_v, num_ts)
+  verbose_analysis = 0
+  test_driver.run_test(verbose_analysis)
+
 if __name__ == '__main__':
   test_name = sys.argv[1]
-  supported_test = ('lstm', 'linear_layer', 'pooling')
+  supported_test = ('lstm', 'linear_layer', 'pooling', 'layernorm')
   assert test_name in supported_test, \
     '{} is not supported, supported test is {}'.format(test_name, supported_test)
   
@@ -54,3 +64,5 @@ if __name__ == '__main__':
     test_linear_layer()
   if test_name == 'pooling':
     test_pooling()
+  if test_name == 'layernorm':
+    test_layernorm()

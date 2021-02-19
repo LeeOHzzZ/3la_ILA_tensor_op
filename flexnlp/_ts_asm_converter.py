@@ -2,9 +2,12 @@ class ts_asm_converter:
   
   __FLEXNLP_VECTOR_SIZE = 16
   __FLEXNLP_GBCORE_NUM_BANKS = 16
-  __FLEXNLP_GB_LARGE_BUF_BASE = '0x33500000'
+  __FLEXNLP_ADDR_BASE = 0x33000000
+  __FLEXNLP_GB_LARGE_BUF_BASE = __FLEXNLP_ADDR_BASE + 0x00500000
+  __FLEXNLP_GB_SMALL_BUF_BASE = __FLEXNLP_ADDR_BASE + 0X00600000
   __GB_CONTROL_START = 1
   __GB_LAYER_REDUCE_START = 2
+  __GB_LAYER_NORM_START = 3
 
   __gb_large_buf_mem_base = [0, 0, 0, 0]
 
@@ -33,7 +36,7 @@ class ts_asm_converter:
 
   def get_gb_large_abs_addr(self, mem_idx, ts_idx, num_v, v_idx):
     out = self.get_gb_large_addr_offset(ts_idx, num_v, v_idx)
-    out += int(self.__FLEXNLP_GB_LARGE_BUF_BASE, base=16)
+    out += self.__FLEXNLP_GB_LARGE_BUF_BASE
     out += self.__gb_large_buf_mem_base[mem_idx]
     return out
 
@@ -62,7 +65,8 @@ class ts_asm_converter:
     ret = []
     for pe_idx in range(4):
       for v in range(num_v_bias):
-        addr = 0x34600000 + pe_idx * 0x01000000 + base_addr + v*16
+        # addr = 0x34600000 + pe_idx * 0x01000000 + base_addr + v*16
+        addr = self.__FLEXNLP_ADDR_BASE + 0x01600000 + pe_idx*0x01000000 + base_addr + v*16
         bias_v_idx = pe_idx * num_v_bias + v
         v_name = '{}.{}'.format(bias_idx, bias_v_idx)
         ret.append({
@@ -79,7 +83,8 @@ class ts_asm_converter:
     """
     asm_types = ['store_act', 'store_wgt', 'store_bias', 'load_act']
     asm_types += ['store_wgt_i', 'store_wgt_h', 'store_bias_i', 'store_bias_h']
-    asm_types += ['maxp', 'meanp','linear_layer', 'lstm_layer']
+    asm_types += ['store_beta', 'store_gamma']
+    asm_types += ['maxp', 'meanp','linear_layer', 'lstm_layer', 'layernorm']
     # this instruction added for simulation
     asm_types += ['wait_irq']
     assert asm['name'] in asm_types, "{} is a not supported ILA assembly".format(asm['name'])
@@ -102,6 +107,10 @@ class ts_asm_converter:
       return self.gen_store_bias_i(asm)
     if asm['name'] == 'store_bias_h':
       return self.gen_store_bias_h(asm)
+    if asm['name'] == 'store_beta':
+      return self.gen_store_beta(asm)
+    if asm['name'] == 'store_gamma':
+      return self.gen_store_gamma(asm)
 
     if asm['name'] in ('maxp', 'meanp'):
       return self.gen_pooling(asm)
@@ -109,6 +118,8 @@ class ts_asm_converter:
       return self.gen_linear_layer(asm)
     if asm['name'] == 'lstm_layer':
       return self.gen_lstm_layer(asm)
+    if asm['name'] == 'layernorm':
+      return self.gen_layer_norm(asm)
 
     if asm['name'] == 'wait_irq':
       return [{'name' : 'wait_irq'}]
@@ -150,7 +161,8 @@ class ts_asm_converter:
     ret = []
     for t in range(num_tiles):
       pe_idx = int(t/(num_tiles/4))
-      pe_base_addr = 0x34500000 + pe_idx*0x01000000
+      # pe_base_addr = 0x34500000 + pe_idx*0x01000000
+      pe_base_addr = self.__FLEXNLP_ADDR_BASE + 0x01500000 + pe_idx*0x01000000
       tile_base_addr = pe_base_addr + addr_offset + (t%int(num_tiles/4))*16*16
       for v in range(16):
         v_name = '{}.t{}.{}'.format(wgt_idx, t, v)
@@ -243,6 +255,51 @@ class ts_asm_converter:
     base_bias = self.get_pe_base_bias_v_2(num_v_in, num_v_out_gb) * 16 # byte level address
     return self.gen_store_bias_helper(bias_idx, base_bias, num_v_bias_pe)
 
+  def gen_store_beta(self, asm):
+    # format: store_beta [idx]
+    #   [idx]: the symbol of beta tensor
+    # description:'
+    #   storing beta tensor into FlexNLP for LayerNorm
+    # assumption: beta is stored at the memory index 5 of the gb small buffer
+    # TODO: assuming the base addr for memory index 5 is 0
+    ret = []
+    num_v_in = self.data_lib['gb_num_vector_in']
+    beta_idx = asm['idx']
+    # currently set base addr for beta right next to gamma
+    base_addr = self.__FLEXNLP_GB_SMALL_BUF_BASE + num_v_in*16
+
+    for v in range(num_v_in):
+      v_name = '{}.{}'.format(beta_idx, v)
+      addr = base_addr + 16*v
+      ret.append({
+        'name' : 'write_v',
+        'vector_name' : v_name,
+        'addr' : hex(addr)
+      })
+    return ret
+
+  def gen_store_gamma(self, asm):
+    # format: store_gamma [idx]
+    #   [idx]: the symbol of gamma tensor
+    # description:
+    #   store gamma tensor into FlexNLP for LayerNorm
+    # assumption:
+    #   gamma is stored at the memory index 6 of the gb small buffer
+    ret = []
+    num_v_in = self.data_lib['gb_num_vector_in']
+    gamma_idx = asm['idx']
+    # TODO: currently set the base address for beta as simple zero
+    base_addr = self.__FLEXNLP_GB_SMALL_BUF_BASE
+    for v in range(num_v_in):
+      v_name = '{}.{}'.format(gamma_idx, v)
+      addr = base_addr + 16*v
+      ret.append({
+        'name' : 'write_v',
+        'vector_name' : v_name,
+        'addr' : hex(addr)
+      })
+    return ret
+
   # ------------------------------------------
   # op assembly
   # ------------------------------------------
@@ -270,6 +327,40 @@ class ts_asm_converter:
     ret.append({
       'name' : 'start',
       'op' : self.__GB_LAYER_REDUCE_START
+    })
+    return ret
+
+  def gen_layer_norm(self, asm):
+    # format: layernorm [num_ts]
+    #   [num_ts]: number of timesteps in the layer
+    # Assumption:
+    #   Use very simple memory management for layer norm for now
+    ret = []
+    # set up gb memory manager
+    ret.append({
+      'name' : 'cfg_mmngr_gb_large',
+      'base_0' : hex(0x0),
+      'num_v_0' : self.data_lib['gb_num_vector_in']
+    })
+    ret.append({
+      'name' : 'cfg_mmngr_gb_small',
+      'base_5': hex(0x0),
+      'base_6': hex(self.data_lib['gb_num_vector_in'])
+    })
+    # set up gb layer norm configuration
+    ret.append({
+      'name' : 'cfg_ly_norm',
+      'mem_idx' : 0,
+      'num_v' : self.data_lib['gb_num_vector_in'],
+      'num_ts' : asm['num_ts'],
+      'adpbias_inp' : self.data_lib['adpbias_inp'],
+      'adpbias_beta' : self.data_lib['adpbias_beta'],
+      'adpbias_gamma' : self.data_lib['adpbias_gamma']
+    })
+    # trigger layer norm
+    ret.append({
+      'name' : 'start',
+      'op' : self.__GB_LAYER_NORM_START
     })
     return ret
 

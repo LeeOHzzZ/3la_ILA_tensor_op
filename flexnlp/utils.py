@@ -9,6 +9,7 @@ import numpy as np
 sys.path.append('./tool')
 from adaptivfloat import quantize_floatext
 from relay_lstm import relay_lstm_ref
+from relay_layers import relay_layernorm
 
 FLEXNLP_VECTOR_SIZE = 16
 FLEXNLP_GBCORE_NUM_BANKS = 16
@@ -37,6 +38,12 @@ class tool:
     """
     return relay_lstm_ref(num_v_in, num_v_out, num_ts,
                           inp, wgt_i, wgt_h, bias_i, bias_h)
+  
+  def get_relay_layernorm_ref(self, num_v, inp, beta, gamma):
+    """
+    return relay layernorm reference data
+    """
+    return relay_layernorm(num_v, inp, beta, gamma)
   
   def wgt_tiling(self, wgt_in, num_v_in, num_v_out):
     """

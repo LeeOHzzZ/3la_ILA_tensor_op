@@ -4,6 +4,7 @@
 """
 class asm_prog_frag_converter:
 
+  __FLEXNLP_BASE_ADDR = 0x33000000
   __instr_cntr = 1
 
   def __init__(self, asm_list, data_lib):
@@ -21,7 +22,7 @@ class asm_prog_frag_converter:
     asm_types += ['pe_cfg_rnn_layer_sizing', 'pe_cfg_mngr']
     asm_types += ['pe_cfg_act_mngr', 'pe_cfg_act_v']
     asm_types += ['cfg_mmngr_gb_large', 'cfg_mmngr_gb_small']
-    asm_types += ['cfg_ly_reduce', 'cfg_gb_ctrl']
+    asm_types += ['cfg_ly_reduce', 'cfg_gb_ctrl', 'cfg_ly_norm']
     asm_types += ['start']
     # wait for interrupt signal added for simulation
     asm_types += ['wait_irq']
@@ -55,6 +56,8 @@ class asm_prog_frag_converter:
       return self.__gen_cfg_ly_reduce(asm)
     if asm['name'] == 'cfg_gb_ctrl':
       return self.__gen_cfg_gb_ctrl(asm)
+    if asm['name'] == 'cfg_ly_norm':
+      return self.__gen_cfg_ly_norm(asm)
 
     # function trigger instructions
     if asm['name'] == 'start':
@@ -95,7 +98,7 @@ class asm_prog_frag_converter:
     # assembly: pe_cfg_rnn_layer_sizing [pe_idx], [is_zero], [is_cluster], [is_bias], [num_mngr], [num_v_out]
     assert asm['pe_idx'] in range(4), 'not supported pe_idx for gen_pe_cfg_rnn_layer_sizing'
     assert len(asm) == 7, 'incorrect arguments for pe_cfg_rnn_layer_sizing'
-    addr = hex(0x34000000 + asm['pe_idx'] * 0x01000000 + 0x00400010)
+    addr = hex(self.__FLEXNLP_BASE_ADDR + (asm['pe_idx']+1)*0x01000000 + 0x00400010)
     instr = "0x0" + \
             hex(asm['num_v_out'])[2:].zfill(2) + hex(asm['num_mngr'])[2:].zfill(2) + \
             hex(asm['is_bias'])[2:].zfill(2) + hex(asm['is_cluster'])[2:].zfill(2) + \
@@ -107,7 +110,7 @@ class asm_prog_frag_converter:
     assert asm['pe_idx'] in range(4), 'not supported pe_idx for gen_pe_cfg_mngr'
     assert asm['mngr_idx'] in range(1,3), 'not supported mngr_idx for pe_cfg_mngr'
     assert len(asm) == 11, "incorrect arguments for pe_cfg_mngr"
-    addr = hex(0x34000000 + asm['pe_idx'] * 0x01000000 + 0x00400000 + asm['mngr_idx'] * 0x20)
+    addr = hex(self.__FLEXNLP_BASE_ADDR + (asm['pe_idx']+1)*0x01000000 + 0x00400000 + asm['mngr_idx']*0x20)
     instr = '0x0' + hex(asm['base_inp'])[2:].zfill(4) + \
             hex(asm['base_bias'])[2:].zfill(4) + hex(asm['base_wgt'])[2:].zfill(4) + \
             hex(asm['num_v_in'])[2:].zfill(4) + \
@@ -118,7 +121,7 @@ class asm_prog_frag_converter:
   def __gen_pe_cfg_act_mngr(self, asm):
     # assembly: pe_cfg_act_mngr [pe_idx], [is_zero], [adpfloat_bias], [num_insn], [num_v_out], [buf_base], [out_base]
     assert asm['pe_idx'] in range(4), 'not supported pe_idx for gen_pe_cfg_act_mngr'
-    addr = hex(0x34000000 + asm['pe_idx']*0x01000000 + 0x00800010)
+    addr = hex(self.__FLEXNLP_BASE_ADDR + (asm['pe_idx']+1)*0x01000000 + 0x00800010)
     instr = '0x0' + \
             hex(asm['out_base'])[2:].zfill(2) + hex(asm['buf_base'])[2:].zfill(4) + \
             hex(asm['num_v_out'])[2:].zfill(4) + hex(asm['num_insn'])[2:].zfill(2) + \
@@ -130,7 +133,7 @@ class asm_prog_frag_converter:
     # assumption: insn are all hex string
     assert asm['pe_idx'] in range(4), 'not supported pe_idx for gen_pe_cfg_act_v'
     assert asm['v_idx'] in range(1,3), 'not supported v_idx for gen_pe_cfg_act_v'
-    addr = hex(0x34000000 + asm['pe_idx']*0x01000000 + 0x00800000 + 0x10*(asm['v_idx']+1))
+    addr = hex(self.__FLEXNLP_BASE_ADDR + (asm['pe_idx']+1)*0x01000000 + 0x00800000 + 0x10*(asm['v_idx']+1))
     instr = ''
     for i in range(16):
       key = 'insn_' + str(i)
@@ -149,19 +152,16 @@ class asm_prog_frag_converter:
     #   1. At least base_0 and num_v_0 are given, the rest are optional
     #   2. base address values are given as hex string
     #   3. num_vector values are given as integer
-    addr = '0x33400010'
+    addr = hex(self.__FLEXNLP_BASE_ADDR + 0x00400010)
     data = ''
     for i in range(4):
       key_v = 'num_v_'+str(i)
       key_b = 'base_'+str(i)
-      
       if key_v in asm:
         data = hex(asm[key_v])[2:].zfill(2) + data
       else:
         data = 2*'0' + data
-      
       data = 2*'0' + data
-
       if key_b in asm:
         data = asm[key_b][2:].zfill(4) + data
       else:
@@ -170,7 +170,7 @@ class asm_prog_frag_converter:
 
   def __gen_cfg_mmngr_gb_small(self, asm):
     # assembly: cfg_mmgnr_gb_small [base_0] (, [base_1], ..., [base_7])
-    addr = '0x33400020'
+    addr = hex(self.__FLEXNLP_BASE_ADDR + 0x00400020)
     data = ''
     for i in range(8):
       key_b = 'base_' + str(i)
@@ -190,7 +190,7 @@ class asm_prog_frag_converter:
     #   2. mem_idx : int
     #   3. num_v : int
     #   4. num_ts : int
-    addr = '0x33800010'
+    addr = hex(self.__FLEXNLP_BASE_ADDR + 0x00800010)
     num_v_field = hex(asm['num_v'])[2:].zfill(4)
     mem_idx_field = hex(asm['mem_idx'])[2:].zfill(4)
     mode_field = hex(asm['mode'])[2:].zfill(2)
@@ -199,10 +199,24 @@ class asm_prog_frag_converter:
 
     return self.__produce_insn(addr, instr, 'W') 
 
+  def __gen_cfg_ly_norm(self, asm):
+    # assembly: cfg_ly_norm [mem_idx], [num_v], [num_ts], [adpbias_inp], [adpbias_beta], [adpbias_gamma]
+    addr = hex(self.__FLEXNLP_BASE_ADDR + 0x00900010)
+    num_v_field = hex(asm['num_v'])[2:].zfill(4)
+    mem_idx_field = hex(asm['mem_idx'])[2:].zfill(4)
+    num_ts_field = hex(asm['num_ts'])[2:].zfill(8)
+    adpbias_g_field = hex(asm['adpbias_gamma'])[2:].zfill(2)
+    adpbias_b_field = hex(asm['adpbias_beta'])[2:].zfill(2)
+    adpbias_i_field = hex(asm['adpbias_inp'])[2:].zfill(2)
+    valid_field = '01'
+    instr = '0x0' + adpbias_g_field + adpbias_b_field + 2*'0' + adpbias_i_field + \
+             num_ts_field + num_v_field + mem_idx_field + 6*'0' + valid_field 
+    return self.__produce_insn(addr, instr, 'W')
+
   def __gen_cfg_gb_ctrl(self, asm):
     # assembly: cfg_gb_ctrl [mode], [is_rnn], [mem_id_i], [mem_id_o], [num_v_i], [num_v_o], [num_ts]
     # assumptions: all input types are integer
-    addr = '0x33700010'
+    addr = hex(self.__FLEXNLP_BASE_ADDR + 0x00700010)
     num_timestep = hex(asm['num_ts'])[2:].zfill(4)
     num_v_field = hex(asm['num_v_o'])[2:].zfill(2) + hex(asm['num_v_i'])[2:].zfill(2)
     mem_id_field = hex(asm['mem_id_o'])[2:].zfill(2) + hex(asm['mem_id_i'])[2:].zfill(2)
@@ -218,14 +232,10 @@ class asm_prog_frag_converter:
   # -------------------------------------------
   def __gen_start(self, asm):
     # assembly: start [op]
+    #   [op]: which op to trigger
+    # assumption: 1: GBControl; 2: LayerReduce; 3: LayerNorm; 4: ZeroPadding; 5: Attention
     assert asm['op'] in (1,2,3,4,5), "unsupported op function trigger"
-    addr = {
-      1 : '0x33000010',
-      2 : '0x33000020',
-      3 : '0x33000030',
-      4 : '0x33000040',
-      5 : '0x33000050'
-    }.get(asm['op'])
+    addr = hex(self.__FLEXNLP_BASE_ADDR + asm['op'] * 0x10)
     return self.__produce_insn(addr, '0x01', 'W')
 
 
