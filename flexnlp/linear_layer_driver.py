@@ -209,7 +209,7 @@ class linear_layer_driver:
     print('\n--------------------------------------------------------------')
     print('\tinvoking ILA simulator')
     print('--------------------------------------------------------------\n')
-    subprocess.run(['./tool/asm_sim_driver.out',
+    subprocess.run(['asm_sim_driver.out',
                     './test/ly_prog_frag_in.json',
                     './test/ly_adpf_result.tmp'])
   

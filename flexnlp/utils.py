@@ -152,7 +152,7 @@ class tool:
     call pre-built binary to convert float32 data into 
     adaptive-float 16byte vector data
     """
-    cmd_0 = ['./tool/float_to_adpfloat.out', in_path, str(bias), out_path]
+    cmd_0 = ['float_to_adpfloat.out', in_path, str(bias), out_path]
     cmd_1 = ['rm', '-f', in_path]
     subprocess.run(cmd_0)
     subprocess.run(cmd_1)
@@ -161,14 +161,14 @@ class tool:
     """
     call pre-built flexnlp-ila simulator to execute the ila program fragment
     """
-    subprocess.run(['./tool/asm_sim_driver.out',
+    subprocess.run(['asm_sim_driver.out',
                     in_path, out_path])
 
   def call_adpt_float_cvtr(self, in_path, bias, out_path):
     """
     call pre-built binary to convert adaptive-float data into float data
     """
-    subprocess.run(['./tool/adpfloat_to_float.out',
+    subprocess.run(['adpfloat_to_float.out',
                     in_path, str(bias), out_path])
 
   def axi_out_to_float(self, in_path, out_path, mem_idx, num_ts, num_vi, num_vo, bias):
