@@ -4,8 +4,9 @@ import numpy as np
 import subprocess
 import os
 
-from utils import tool as tool
-from converter import Converter as cvtr
+import tvm
+from tvm.contrib.ly3la.flexnlp.utils import tool as tool
+from tvm.contrib.ly3la.flexnlp.converter import Converter as cvtr
 
 np.set_printoptions(suppress=True)
 
