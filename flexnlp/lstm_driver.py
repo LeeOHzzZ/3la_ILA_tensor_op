@@ -103,11 +103,6 @@ class lstm_layer_driver:
     self.bias_i = np.fromfile(bias_path, sep= '\n')
     self.bias_h = np.zeros((4*16*self.num_v_out))
 
-    print("input: {}".format(self.inp))
-    print('i2h_wgt: {}'.format(self.wgt_i))
-    print('h2h_wgt: {}'.format(self.wgt_h))
-    print('bias: {}'.format(self.bias_i))
-    
 
   def produce_lstm_data_lib(self):
     """
