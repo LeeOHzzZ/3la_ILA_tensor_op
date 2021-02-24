@@ -240,6 +240,7 @@ class linear_layer_driver:
   def run(self):
     subprocess.run(['mkdir', '-p', 'npy', 'test', 'data'])
     self.collect_data()
+    # driver needs producing reference result is to get output activation adpbias
     self.produce_ref_result()
     self.produce_ly_data_lib()
     self.produce_ly_asm()
