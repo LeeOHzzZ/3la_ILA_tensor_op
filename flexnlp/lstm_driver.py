@@ -74,6 +74,40 @@ class lstm_layer_driver:
   # produce LSTM data_lib
   # ----------------------------
 
+  def collect_data(self):
+    """
+    collect data from the dump file from Relay/TVM
+    """
+    print('\n--------------------------------------------------------------')
+    print('\tcollecting input data')
+    print('--------------------------------------------------------------\n')
+
+    inp_path = './data/lstm_inp.txt'
+    print('collecting lstm input data from ' + inp_path)
+    self.inp = np.fromfile(inp_path, sep = '\n')
+
+    i2h_wgt_path = './data/lstm_i2h_wgt.txt'
+    print('collecting lstm i2h weights from ' + i2h_wgt_path)
+    self.wgt_i = np.fromfile(i2h_wgt_path, sep = '\n')
+    self.wgt_i = self.wgt_i.reshape((4*16*self.num_v_out, 16*self.num_v_in))
+
+    h2h_wgt_path = './data/lstm_h2h_wgt.txt'
+    print('collecting lstm h2h weights from ' + h2h_wgt_path)
+    self.wgt_h = np.fromfile(h2h_wgt_path, sep = '\n')
+    self.wgt_h = self.wgt_h.reshape((4*16*self.num_v_out, 16*self.num_v_out))
+
+    # current relay/tvm zeros out the hidden bias
+    bias_path = './data/lstm_bias.txt'
+    print('collecting lstm bias from ' + bias_path)
+    self.bias_i = np.fromfile(bias_path, sep= '\n')
+    self.bias_h = np.zeros((4*16*self.num_v_out))
+
+    print("input: {}".format(self.inp))
+    print('i2h_wgt: {}'.format(self.wgt_i))
+    print('h2h_wgt: {}'.format(self.wgt_h))
+    print('bias: {}'.format(self.bias_i))
+    
+
   def produce_lstm_data_lib(self):
     """
     get quantized inputs, weights and bias
@@ -249,6 +283,19 @@ class lstm_layer_driver:
     self.gen_axi_cmds()
     self.produce_ref_result(use_relay)
     self.result_analysis(verbose_analysis)
+  
+  def run(self):
+    subprocess.run(['mkdir', '-p', 'npy', 'test', 'data'])
+    self.produce_lstm_asm()
+    self.collect_data()
+    self.produce_lstm_data_lib()
+    self.gen_prog_frag()
+    self.invoke_ila_simulator()
+    self.get_ila_sim_result()
+    self.gen_axi_cmds()
+    # dump result
+    self.result.tofile('./data/lstm_out.txt', sep = '\n')
+    print('\n*** lstm output has been dump to ./data/lstm_out.txt ***')
 
   ##########################################
   ##  Test tool
@@ -397,3 +444,16 @@ class lstm_layer_driver:
     for file in os.listdir('./test'):
       if '.tmp' in file:
         subprocess.run(['rm', './test/'+file])
+
+if __name__ == '__main__':
+  assert len(sys.argv) == 6, \
+    "Usage: python3 lstm_driver.py [num_v_in] [num_v_out] [num_ts] [is_bias] [is_zero_first]"
+  num_v_in = int(sys.argv[1])
+  num_v_out = int(sys.argv[2])
+  num_ts = int(sys.argv[3])
+  is_bias = int(sys.argv[4])
+  is_zero_first = int(sys.argv[5])
+
+  driver = lstm_layer_driver(num_v_in, num_v_out, num_ts, is_bias, is_zero_first)
+  driver.run()
+  driver.clean_up()
