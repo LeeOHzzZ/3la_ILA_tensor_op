@@ -152,13 +152,13 @@ class layernorm_driver:
   # --------------------------------------
   # dump axi commands
   # --------------------------------------
-  def gen_axi_cmds(self):
+  def gen_axi_cmds(self, base_addr):
     print('\n--------------------------------------------------------------')
     print('\tgenerate axi commands for FlexNLP')
     print('--------------------------------------------------------------\n')
     if not self.ila_cvtr:
       self.ila_cvtr = cvtr('./test/layernorm_asm.json', './test/layernorm_data_lib.json')
-    self.ila_cvtr.dump_axi_cmds('./test/layernorm_axi_cmd.csv')
+    self.ila_cvtr.dump_axi_cmds('./test/layernorm_axi_cmd.csv', base_addr)
     print('*** axi commands has been dumped to ./test/layernorm_axi_cmd.csv ***')
   
   def run_test(self, verbose_analysis):
@@ -169,7 +169,7 @@ class layernorm_driver:
     self.gen_prog_frag()
     self.invoke_ila_simulator()
     self.get_ila_sim_result()
-    self.gen_axi_cmds()
+    self.gen_axi_cmds('0xA0000000')
     self.produce_ref_result()
     self.result_analysis(verbose_analysis)
     self.clean_up()

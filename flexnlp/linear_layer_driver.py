@@ -201,8 +201,8 @@ class linear_layer_driver:
     print('\n--------------------------------------------------------------')
     print('\tgenerate prog_frag.json for ILA simulator')
     print('--------------------------------------------------------------\n')
-    ila_cvtr = cvtr('./test/ly_asm.json', './test/ly_data_lib.json')
-    ila_cvtr.dump_ila_prog_frag('./test/ly_prog_frag_in.json')
+    self.ila_cvtr = cvtr('./test/ly_asm.json', './test/ly_data_lib.json')
+    self.ila_cvtr.dump_ila_prog_frag('./test/ly_prog_frag_in.json')
     print('***ILA program fragment has been dumped to ./test/ly_prog_frag_in.json***\n')
   
   def invoke_ila_simulator(self):
@@ -236,6 +236,18 @@ class linear_layer_driver:
       if is_verbose:
         print("reference output: \n{}\nresult: \n{}\n".format(ref, result_ts))
 
+  # --------------------------------------
+  # dump axi commands
+  # --------------------------------------
+  def gen_axi_cmds(self, base_addr):
+    print('\n--------------------------------------------------------------')
+    print('\tgenerate axi commands for FlexNLP')
+    print('--------------------------------------------------------------\n')
+    if not self.ila_cvtr:
+      self.ila_cvtr = cvtr('./test/ly_asm.json', './test/ly_data_lib.json')
+    self.ila_cvtr.dump_axi_cmds('./test/ly_axi_cmd.csv', base_addr)
+    print('*** axi commands has been dumped to ./test/ly_axi_cmd.csv ***')
+
   def run(self):
     subprocess.run(['mkdir', '-p', 'npy', 'test', 'data'])
     self.collect_data()
@@ -244,8 +256,11 @@ class linear_layer_driver:
     self.produce_ly_data_lib()
     self.produce_ly_asm()
     self.gen_prog_frag()
+    self.gen_axi_cmds('0xA0000000')
     self.invoke_ila_simulator()
     self.get_ila_sim_result()
+
+    
     # self.result_analysis()
     # dump result
     self.result.tofile('./data/result.txt', sep = '\n')
@@ -256,7 +271,8 @@ class linear_layer_driver:
     self.gen_prog_frag()
     self.invoke_ila_simulator()
     self.get_ila_sim_result()
-    self.result_analysis(1)
+    self.result_analysis(0)
+    self.gen_axi_cmds('0xA0000000')
 
   def clean_up(self):
     for file in os.listdir('./test'):
