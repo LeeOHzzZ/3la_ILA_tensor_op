@@ -4,9 +4,8 @@ import numpy as np
 import subprocess
 import os
 
-import tvm
-from tvm.contrib.ly3la.flexnlp.utils import tool
-from tvm.contrib.ly3la.flexnlp.converter import Converter as cvtr
+from utils import tool
+from converter import Converter as cvtr
 
 class pooling_layer_driver:
   def __init__(self, mode, num_v_in, num_ts):

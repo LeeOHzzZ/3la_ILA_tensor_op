@@ -4,9 +4,8 @@ import numpy as np
 import subprocess
 import os
 
-import tvm
-from tvm.contrib.ly3la.flexnlp.utils import tool as tool
-from tvm.contrib.ly3la.flexnlp.converter import Converter as cvtr
+from utils import tool as tool
+from converter import Converter as cvtr
 
 np.set_printoptions(suppress=True)
 
@@ -107,6 +106,11 @@ class lstm_layer_driver:
       self.cell_state_init = np.zeros((16*self.num_v_out))
       self.hidden_state_init = np.zeros((16*self.num_v_out))
 
+    print("input: {}".format(self.inp))
+    print('i2h_wgt: {}'.format(self.wgt_i))
+    print('h2h_wgt: {}'.format(self.wgt_h))
+    print('bias: {}'.format(self.bias_i))
+    
 
   def produce_lstm_data_lib(self):
     """

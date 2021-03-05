@@ -1,10 +1,7 @@
 import json
 
-import tvm
-from tvm.contrib.ly3la.flexnlp._ts_asm_converter import ts_asm_converter as ts_cvtr
-from tvm.contrib.ly3la.flexnlp._asm_prog_frag_converter import asm_prog_frag_converter as prog_cvtr
-# from _ts_asm_converter import ts_asm_converter as ts_cvtr
-# from _asm_prog_frag_converter import asm_prog_frag_converter as prog_cvtr
+from _ts_asm_converter import ts_asm_converter as ts_cvtr
+from _asm_prog_frag_converter import asm_prog_frag_converter as prog_cvtr
 
 class Converter:
 

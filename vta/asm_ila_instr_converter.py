@@ -1,7 +1,5 @@
 import json
-import tvm
-from tvm.contrib.ly3la.vta.vta_macros import *
-# from vta_macros import *
+from vta_macros import *
 
 instr_cntr = 1
 
