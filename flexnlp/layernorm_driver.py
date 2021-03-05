@@ -135,7 +135,7 @@ class layernorm_driver:
     print('\n--------------------------------------------------------------')
     print('\tinvoking ILA simulator')
     print('--------------------------------------------------------------\n')
-    subprocess.run(['asm_sim_driver.out',
+    subprocess.run(['flex_asm_sim_driver',
                     './test/layernorm_prog_frag_in.json',
                     './test/layernorm_adpf_result.tmp'])
 
