@@ -4,9 +4,8 @@ import numpy as np
 import subprocess
 import os
 
-import tvm
-from tvm.contrib.ly3la.flexnlp.utils import tool as tool
-from tvm.contrib.ly3la.flexnlp.converter import Converter as cvtr
+from utils import tool as tool
+from converter import Converter as cvtr
 
 class linear_layer_driver:
   def __init__(self, num_v_in, num_v_out, num_ts, is_bias):
