@@ -1,9 +1,10 @@
 import sys
 
-from linear_layer_driver import linear_layer_driver
-from lstm_driver import lstm_layer_driver
-from pooling_driver import pooling_layer_driver
-from layernorm_driver import layernorm_driver
+import tvm
+from tvm.contrib.ly3la.flexnlp.linear_layer_driver import linear_layer_driver
+from tvm.contrib.ly3la.flexnlp.lstm_driver import lstm_layer_driver
+from tvm.contrib.ly3la.flexnlp.pooling_driver import pooling_layer_driver
+from tvm.contrib.ly3la.flexnlp.layernorm_driver import layernorm_driver
 
 def test_lstm():
   assert len(sys.argv) == 7, \
