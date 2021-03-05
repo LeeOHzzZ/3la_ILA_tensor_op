@@ -6,10 +6,9 @@ import sys
 import subprocess
 import numpy as np
 
-sys.path.append('./tool')
-from adaptivfloat import quantize_floatext
-from relay_lstm import relay_lstm_ref
-from relay_layers import relay_layernorm
+from tvm.contrib.ly3la.flexnlp.tool.adaptivfloat import quantize_floatext
+from tvm.contrib.ly3la.flexnlp.tool.relay_lstm import relay_lstm_ref
+from tvm.contrib.ly3la.flexnlp.tool.relay_layers import relay_layernorm
 
 FLEXNLP_VECTOR_SIZE = 16
 FLEXNLP_GBCORE_NUM_BANKS = 16
