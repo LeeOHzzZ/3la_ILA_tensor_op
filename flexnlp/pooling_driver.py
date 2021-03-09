@@ -4,8 +4,8 @@ import numpy as np
 import subprocess
 import os
 
-from utils import tool
-from converter import Converter as cvtr
+from src.utils import tool
+from src.converter import Converter as cvtr
 
 class pooling_layer_driver:
   def __init__(self, mode, num_v_in, num_ts):
@@ -111,9 +111,11 @@ class pooling_layer_driver:
     print('\n--------------------------------------------------------------')
     print('\tinvoking ILA simulator')
     print('--------------------------------------------------------------\n')
-    subprocess.run(['asm_sim_driver.out',
-                    './test/pooling_prog_frag_in.json',
-                    './test/pooling_adpf_result.tmp'])
+    # subprocess.run(['flex_asm_sim_driver',
+    #                 './test/pooling_prog_frag_in.json',
+    #                 './test/pooling_adpf_result.tmp'])
+    self.tl.call_ila_simulator('./test/pooling_prog_frag_in.json',
+                               './test/pooling_adpf_result.tmp')
 
   def get_ila_sim_result(self):
     print('\n--------------------------------------------------------------')
@@ -138,7 +140,7 @@ class pooling_layer_driver:
     self.ila_cvtr.dump_axi_cmds('./test/pooling_axi_cmd.csv', base_addr)
     print('*** axi commands has been dumped to ./test/pooling_axi_cmd.csv ***')
 
-  def run_test(self, verbose_analysis):
+  def run_test(self, verbose_analysis=0):
     subprocess.run(['mkdir', '-p', 'npy', 'test', 'data'])
     self.produce_pooling_asm()
     self.produce_random_test_data()
@@ -183,13 +185,13 @@ class pooling_layer_driver:
         out.append((inp[2*i, ] + inp[2*i+1, ])/2)
     self.ref_out = out
   
-  def result_analysis(self, is_verbose):
+  def result_analysis(self, is_verbose=0):
     print('\n--------------------------------------------------------------')
     print('\tanalyze ILA simulation result')
     print('--------------------------------------------------------------\n')
     for i in range(self.num_ts >> 1):
       result_ts = self.result[self.num_v_in*16*i : self.num_v_in*16*(i+1)]
-      ref = self.ref_out[i]
+      ref = self.tl.get_adpfloat_bias(self.ref_out[i])[0]
       err_out, err_ref = self.tl.cal_error(result_ts, ref)
       print("result timestep No.{} --- relative error (vs. sim_out): {:5.5%}\
             relative error (vs. ref): {:5.5%}\n".format(i, err_out, err_ref))
@@ -200,3 +202,16 @@ class pooling_layer_driver:
     for file in os.listdir('./test'):
       if '.tmp' in file:
         subprocess.run(['rm', './test/'+file])
+
+
+if __name__ == '__main__':
+  assert len(sys.argv) == 4, \
+    "Usage: python3 pooling_driver.py [mode] [num_vector_in] [num_timestep]"
+  mode = sys.argv[1]
+  num_v_in = int(sys.argv[2])
+  num_ts = int(sys.argv[3])
+
+  test_driver = pooling_layer_driver(mode, num_v_in, num_ts)
+  # test_driver.run()
+  test_driver.run_test(verbose_analysis=1)
+  test_driver.clean_up()

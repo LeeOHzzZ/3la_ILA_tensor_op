@@ -4,8 +4,8 @@ import numpy as np
 import subprocess
 import os
 
-from utils import tool as tool
-from converter import Converter as cvtr
+from src.converter import Converter as cvtr
+from src.utils import tool
 
 class linear_layer_driver:
   def __init__(self, num_v_in, num_v_out, num_ts, is_bias):
@@ -107,9 +107,10 @@ class linear_layer_driver:
     for i in range(self.num_ts):
       inp_ts = self.inp[self.num_v_in*16*i : self.num_v_in*16*(i+1)]
       ref = np.add(np.matmul(self.wgt, inp_ts), self.bias)
-      self.ref.append(ref)
       ref_q, bias_act = self.tl.get_adpfloat_bias(ref)
       self.bias_act = bias_act
+      # need to quantize the reference as well for comparsion
+      self.ref.append(ref_q)
 
   def produce_ly_data_lib(self):
     # --------------------------
@@ -209,9 +210,11 @@ class linear_layer_driver:
     print('\n--------------------------------------------------------------')
     print('\tinvoking ILA simulator')
     print('--------------------------------------------------------------\n')
-    subprocess.run(['asm_sim_driver.out',
-                    './test/ly_prog_frag_in.json',
-                    './test/ly_adpf_result.tmp'])
+    # subprocess.run(['flex_asm_sim_driver',
+    #                 './test/ly_prog_frag_in.json',
+    #                 './test/ly_adpf_result.tmp'])
+    self.tl.call_ila_simulator('./test/ly_prog_frag_in.json',
+                               './test/ly_adpf_result.tmp')
   
   def get_ila_sim_result(self):
     print('\n--------------------------------------------------------------')
@@ -290,5 +293,5 @@ if __name__ == '__main__':
 
   driver = linear_layer_driver(num_v_in, num_v_out, num_ts, is_bias)
   driver.run()
-  # driver.result_analysis(0)
+  # driver.run_test()
   driver.clean_up()

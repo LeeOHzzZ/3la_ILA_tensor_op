@@ -1,4 +1,6 @@
 import sys
+import os
+import subprocess
 
 from linear_layer_driver import linear_layer_driver
 from lstm_driver import lstm_layer_driver
@@ -51,10 +53,11 @@ def test_layernorm():
   test_driver = layernorm_driver(num_v, num_ts)
   verbose_analysis = 0
   test_driver.run_test(verbose_analysis)
+  test_driver.clean_up()
 
 if __name__ == '__main__':
   test_name = sys.argv[1]
-  supported_test = ('lstm', 'linear_layer', 'pooling', 'layernorm')
+  supported_test = ('lstm', 'linear_layer', 'pooling', 'layernorm', 'all')
   assert test_name in supported_test, \
     '{} is not supported, supported test is {}'.format(test_name, supported_test)
   
@@ -66,3 +69,15 @@ if __name__ == '__main__':
     test_pooling()
   if test_name == 'layernorm':
     test_layernorm()
+  if test_name == 'all':
+    print("run all the test with default parameters")
+    lstm_layer_driver(num_v_in = 4, num_v_out = 4, num_ts = 2, 
+                      is_bias = 1, is_zero_first = 1).run_test()
+    linear_layer_driver(num_v_in = 4, num_v_out = 4, num_ts = 4, is_bias = 1).run_test()
+    pooling_layer_driver('max', num_v_in=4, num_ts=4).run_test()
+    pooling_layer_driver('mean', num_v_in=4, num_ts=4).run_test()
+    layernorm_driver(num_v=4, num_ts=4)
+    # clean up
+    for file in os.listdir('./test'):
+      if '.tmp' in file:
+        subprocess.run(['rm', './test/'+file])

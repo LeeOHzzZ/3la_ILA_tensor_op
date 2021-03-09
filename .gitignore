@@ -31,9 +31,12 @@
 *.out
 *.app
 
-# Default build directory
+# Default build/cache directory
 build/*
 .vscode/*
+flexnlp/__pycache__/*
+hlscnn/__pycache__/*
+vta/__pycache__/*
 
 # Intermediate files
 *.swp

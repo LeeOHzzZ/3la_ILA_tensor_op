@@ -4,8 +4,8 @@ import numpy as np
 import subprocess
 import os
 
-from utils import tool as tool
-from converter import Converter as cvtr
+from src.utils import tool as tool
+from src.converter import Converter as cvtr
 
 np.set_printoptions(suppress=True)
 
@@ -106,12 +106,6 @@ class lstm_layer_driver:
       self.cell_state_init = np.zeros((16*self.num_v_out))
       self.hidden_state_init = np.zeros((16*self.num_v_out))
 
-    print("input: {}".format(self.inp))
-    print('i2h_wgt: {}'.format(self.wgt_i))
-    print('h2h_wgt: {}'.format(self.wgt_h))
-    print('bias: {}'.format(self.bias_i))
-    
-
   def produce_lstm_data_lib(self):
     """
     get quantized inputs, weights and bias
@@ -134,8 +128,8 @@ class lstm_layer_driver:
     # these adpbias are very likely to be the same
     assert adpbias_wgt_i == adpbias_wgt_h, \
       'adpbias_wgt_i({}) != adpbias_wgt_h({})'.format(adpbias_wgt_i, adpbias_wgt_h)
-    assert adpbias_b_i == adpbias_b_h, \
-      'adpbias_b_i({}) != adpbias_b_h({})'.format(adpbias_b_i, adpbias_b_h)
+    # assert adpbias_b_i == adpbias_b_h, \
+    #   'adpbias_b_i({}) != adpbias_b_h({})'.format(adpbias_b_i, adpbias_b_h)
     self.bias_wgt = int(adpbias_wgt_i + 10)
     self.bias_inp = int(adpbias_inp + 10)
     self.bias_b = int(adpbias_b_i + 10)
@@ -249,9 +243,11 @@ class lstm_layer_driver:
     print('\n--------------------------------------------------------------')
     print('\tinvoking ILA simulator')
     print('--------------------------------------------------------------\n')
-    subprocess.run(['asm_sim_driver.out',
-                    './test/lstm_prog_frag_in.json',
-                    './test/lstm_adpf_result.tmp'])
+    # subprocess.run(['flex_asm_sim_driver',
+    #                 './test/lstm_prog_frag_in.json',
+    #                 './test/lstm_adpf_result.tmp'])
+    self.tl.call_ila_simulator('./test/lstm_prog_frag_in.json',
+                               './test/lstm_adpf_result.tmp')
 
   def get_ila_sim_result(self):
     print('\n--------------------------------------------------------------')
@@ -276,7 +272,7 @@ class lstm_layer_driver:
     self.ila_cvtr.dump_axi_cmds('./test/lstm_axi_cmd.csv', base_addr)
     print('*** axi commands has been dumped to ./test/lstm_axi_cmd.csv ***')
 
-  def run_test(self, use_relay, verbose_analysis):
+  def run_test(self, use_relay=1, verbose_analysis=0):
     subprocess.run(['mkdir', '-p', 'npy', 'test', 'data'])
     self.produce_lstm_asm()
     self.produce_random_test_data()
@@ -317,7 +313,7 @@ class lstm_layer_driver:
     print('\n--------------------------------------------------------------')
     print('\tproducing random input data')
     print('--------------------------------------------------------------\n')
-    coef = 1
+    coef = 0.8
     # input weight matrix dimension is (4 x output, input)
     # hidden weight matrix dimension is (4 x output, input)
     wgt_i_init = \
@@ -336,6 +332,8 @@ class lstm_layer_driver:
         coef * np.random.uniform(-1, 1, (4*16*self.num_v_out)).astype(np.float32)
       bias_h_init = \
         coef * np.random.uniform(-1, 1, (4*16*self.num_v_out)).astype(np.float32)
+      # bias_h_init = np.zeros((4*16*self.num_v_out), dtype = np.float32)
+
     else:
       bias_i_init = np.zeros((4*16*self.num_v_out), dtype = np.float32)
       bias_h_init = np.zeros((4*16*self.num_v_out), dtype = np.float32)
@@ -415,7 +413,7 @@ class lstm_layer_driver:
                             self.inp, self.wgt_i, self.wgt_h, self.bias_i, self.bias_h)
       self.ref_out = []
       for t in range(self.num_ts):
-        self.ref_out.append(ref[0, t, ])
+        self.ref_out.append(self.tl.get_adpfloat_bias(ref[0, t, ])[0])
     else:
       # # self composed LSTM cell
       self.get_lstm_cell_data(self.wgt_i, self.bias_i, self.wgt_h, self.bias_h)
@@ -423,12 +421,9 @@ class lstm_layer_driver:
       for t in range(self.num_ts):
         input = self.inp[t*16*self.num_v_in : (t+1)*16*self.num_v_in, ]
         hidden_state, cell_state = self.lstm_cell(input, hidden_state, cell_state)
+        hidden_state = self.tl.get_adpfloat_bias(hidden_state)[0]
+        cell_state = self.tl.get_adpfloat_bias(cell_state)[0]
         self.ref_out.append(hidden_state)
-        # for comparing different LSTM reference results
-        # print('relay output \n{}\nmy lstm output\n{}'.format(self.ref_out[t], hidden_state))
-        # err_out, err_ref = self.tl.cal_error(self.ref_out[t], hidden_state)
-        # print("my lstm timestep No.{} --- relative error (vs. Relay_LSTM): {:5.5%}\
-        #       relative error (vs. ref): {:5.5%}\n".format(t, err_out, err_ref))
 
   # --------------------------------------
   # result analysis
@@ -462,4 +457,5 @@ if __name__ == '__main__':
 
   driver = lstm_layer_driver(num_v_in, num_v_out, num_ts, is_bias, is_zero_first)
   driver.run()
+  # driver.run_test(use_relay=0, verbose_analysis=0)
   driver.clean_up()

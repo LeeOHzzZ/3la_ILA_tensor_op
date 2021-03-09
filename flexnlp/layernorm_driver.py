@@ -4,8 +4,8 @@ import numpy as np
 import subprocess
 import os
 
-from utils import tool
-from converter import Converter as cvtr
+from src.utils import tool
+from src.converter import Converter as cvtr
 
 class layernorm_driver:
   def __init__(self, num_v, num_ts):
@@ -135,9 +135,11 @@ class layernorm_driver:
     print('\n--------------------------------------------------------------')
     print('\tinvoking ILA simulator')
     print('--------------------------------------------------------------\n')
-    subprocess.run(['asm_sim_driver.out',
-                    './test/layernorm_prog_frag_in.json',
-                    './test/layernorm_adpf_result.tmp'])
+    # subprocess.run(['flex_asm_sim_driver',
+    #                 './test/layernorm_prog_frag_in.json',
+    #                 './test/layernorm_adpf_result.tmp'])
+    self.tl.call_ila_simulator('./test/layernorm_prog_frag_in.json',
+                               './test/layernorm_adpf_result.tmp')
 
   def get_ila_sim_result(self):
     print('\n--------------------------------------------------------------')
@@ -161,7 +163,7 @@ class layernorm_driver:
     self.ila_cvtr.dump_axi_cmds('./test/layernorm_axi_cmd.csv', base_addr)
     print('*** axi commands has been dumped to ./test/layernorm_axi_cmd.csv ***')
   
-  def run_test(self, verbose_analysis):
+  def run_test(self, verbose_analysis=0):
     subprocess.run(['mkdir', '-p', 'npy', 'test', 'data'])
     self.produce_asm()
     self.produce_random_test_data()
@@ -218,7 +220,7 @@ class layernorm_driver:
     print('--------------------------------------------------------------\n')
     for i in range(self.num_ts):
       result_ts = self.result[self.num_v*16*i : self.num_v*16*(i+1)]
-      ref = self.ref_out[i]
+      ref = self.tl.get_adpfloat_bias(self.ref_out[i])[0]
       err_out, err_ref = self.tl.cal_error(result_ts, ref)
       print("result timestep No.{} --- relative error (vs. sim_out): {:5.5%}\
             relative error (vs. ref): {:5.5%}\n".format(i, err_out, err_ref))
@@ -229,3 +231,12 @@ class layernorm_driver:
     for file in os.listdir('./test'):
       if '.tmp' in file:
         subprocess.run(['rm', './test/'+file])
+
+if __name__ == '__main__':
+  assert len(sys.argv) == 3, \
+    "Usage: python3 layernorm [num_vector_in] [num_timestep]"
+  num_v = int(sys.argv[1])
+  num_ts = int(sys.argv[2])
+  test_driver = layernorm_driver(num_v, num_ts)
+  test_driver.run_test(verbose_analysis=0)
+  test_driver.clean_up()
