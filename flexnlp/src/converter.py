@@ -62,7 +62,9 @@ class Converter:
     based on the create_test_vec.pl provided by Thierry
     example: weight128.val64[1] = 0x0A97DED717F647FF; weight128.val64[0] = 0xFEF6EB776CEBF455; HW128_REG(0xa0500000) = weight128.val128;
     """
-    self.test_vec_list = []
+    self.test_vec_wr_list = []
+    self.test_vec_rd_list = []
+
     if not self.is_to_prog:
       self.to_ila_prog_frag
     for insn in self.prog_frag:
@@ -82,15 +84,9 @@ class Converter:
         else:
           data_l = '0x' + data
           data_h = '0x0'
-        self.test_vec_list.append(
-          'weight128.val64[1] = {}; weight128.val64[0] = {}; HW128_REG({}) = weight128.val128;\n'.format(
-            data_h, data_l, addr
-          )
-        )
+        self.test_vec_wr_list.append('{};{};{};\n'.format(addr, data_h, data_l))
       elif mode == 'R':
-        self.test_vec_list.append(
-          'read_data.val128 = HW128_REG({})\n'.format(addr)
-        )
+        self.test_vec_rd_list.append('{};\n'.format(addr))
   
   def dump_ila_asm(self, out_path):
     """
@@ -119,8 +115,10 @@ class Converter:
       self.to_test_vec_for_fpga(flexnlp_base_addr)
     with open(out_path, 'w') as fout:
       fout.writelines(self.axi_cmd_list)
-    with open(out_path[:-4]+'_test_vec.txt', 'w') as fout:
-      fout.writelines(self.test_vec_list)
+    with open(out_path[:-4]+'_test_vec_wr.txt', 'w') as fout:
+      fout.writelines(self.test_vec_wr_list)
+    with open(out_path[:-4]+'_test_vec_rd.txt', 'w') as fout:
+      fout.writelines(self.test_vec_rd_list)
   
 
  

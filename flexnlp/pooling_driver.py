@@ -111,9 +111,6 @@ class pooling_layer_driver:
     print('\n--------------------------------------------------------------')
     print('\tinvoking ILA simulator')
     print('--------------------------------------------------------------\n')
-    # subprocess.run(['flex_asm_sim_driver',
-    #                 './test/pooling_prog_frag_in.json',
-    #                 './test/pooling_adpf_result.tmp'])
     self.tl.call_ila_simulator('./test/pooling_prog_frag_in.json',
                                './test/pooling_adpf_result.tmp')
 

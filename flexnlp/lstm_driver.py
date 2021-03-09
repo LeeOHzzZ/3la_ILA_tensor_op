@@ -243,9 +243,6 @@ class lstm_layer_driver:
     print('\n--------------------------------------------------------------')
     print('\tinvoking ILA simulator')
     print('--------------------------------------------------------------\n')
-    # subprocess.run(['flex_asm_sim_driver',
-    #                 './test/lstm_prog_frag_in.json',
-    #                 './test/lstm_adpf_result.tmp'])
     self.tl.call_ila_simulator('./test/lstm_prog_frag_in.json',
                                './test/lstm_adpf_result.tmp')
 
