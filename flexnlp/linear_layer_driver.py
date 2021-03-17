@@ -310,10 +310,11 @@ class linear_layer_driver:
     self.gen_prog_frag()
     self.invoke_ila_simulator()
     self.get_ila_sim_result()
-    self.result_analysis(0)
+    self.result_analysis()
     self.gen_axi_cmds('0xA0000000')
     # self.invoke_fpga_simulation()
     # self.collect_fpga_results()
+    # self.result_analysis(is_fpga = 1)
 
   def clean_up(self):
     for file in os.listdir('./test'):
