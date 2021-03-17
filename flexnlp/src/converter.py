@@ -1,5 +1,6 @@
 import json
 
+from .utils import tool
 from ._ts_asm_converter import ts_asm_converter as ts_cvtr
 from ._asm_prog_frag_converter import asm_prog_frag_converter as prog_cvtr
 
@@ -84,9 +85,19 @@ class Converter:
         else:
           data_l = '0x' + data
           data_h = '0x0'
-        self.test_vec_wr_list.append('{};{};{};\n'.format(addr, data_h, data_l))
+        self.test_vec_wr_list.append(
+          'weight128.val64[1] = {}; weight128.val64[0] = {};HW128_REG({}) = weight128.val128;\n'.format(data_h, data_l, addr)
+          )
       elif mode == 'R':
-        self.test_vec_rd_list.append('{};\n'.format(addr))
+        # self.test_vec_rd_list.append(
+        #   'read_data.val128 = HW128_REG({});\nprintf("[read_out]: \{'.format(addr) + \
+        #   '"0x%llx" : "0x%016llx%016llx"\}\n", {}, read_data.val64[1], read_data.val64[0]);\n'.format(addr)
+        #   )
+        self.test_vec_rd_list.append(
+          'read_data.val128 = HW128_REG(' + addr + ');\n' + \
+          'printf("[read_out]: {\\"0x%llx\\" : \\"0x%016llx%016llx\\"}\\n",' + addr + \
+          ', read_data.val64[1], read_data.val64[0]);\n'
+        )
   
   def dump_ila_asm(self, out_path):
     """
@@ -115,10 +126,24 @@ class Converter:
       self.to_test_vec_for_fpga(flexnlp_base_addr)
     with open(out_path, 'w') as fout:
       fout.writelines(self.axi_cmd_list)
-    with open(out_path[:-4]+'_test_vec_wr.txt', 'w') as fout:
+    
+    # get the code script template
+    # temp = open('./src/tool/set_axi_cmds_template.txt', 'r').read()
+    self.tl = tool()
+    temp = self.tl.get_axi_cmd_template()
+
+    with open(out_path[:-4]+'_set_wr_cmds.h', 'w') as fout:
+      fout.write("#ifndef SET_AXI_WR_CMDS_H_\n#define SET_AXI_WR_CMDS_H_\n\n")
+      fout.write(temp)
+      fout.write('\nint set_axi_wr_cmds() {\n')
       fout.writelines(self.test_vec_wr_list)
-    with open(out_path[:-4]+'_test_vec_rd.txt', 'w') as fout:
+      fout.write('\n}\n\n#endif\n')
+    with open(out_path[:-4]+'_set_rd_cmds.h', 'w') as fout:
+      fout.write("#ifndef SET_AXI_RD_CMDS_H_\n#define SET_AXI_RD_CMDS_H_\n\n")
+      fout.write(temp)
+      fout.write('\nint set_axi_rd_cmds() {\n')
       fout.writelines(self.test_vec_rd_list)
+      fout.write('\n}\n\n#endif\n')
   
 
  

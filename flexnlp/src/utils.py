@@ -218,4 +218,53 @@ class tool:
     # get bias base address in pe input buffer for hidden state
     return self.get_pe_base_bias_v_1(num_v_in) + num_v_out*2 + 0x20
 
+
+  """
+  for generating FPGA source code file
+  """
+  def get_axi_cmd_template(self):
+    return (
+      '#include <stdio.h>\n'  +
+      '#include <string.h>\n'  + 
+      '#include "xparameters.h"\n'  +
+      '#include "xil_io.h"\n'  +
+      '#include "xbasic_types.h"\n'  +
+      '#include "arm_neon.h"\n'  +
+      '#include "xscugic.h"\n'  +
+      '#include "xtime_l.h"\n'  +
+      '#include "sleep.h"\n'  +
+      'typedef unsigned uint128_t __attribute__ ((mode (TI)));\n'  +
+
+      '#define HW128_REG(ADDRESS)  (*((volatile uint128_t  *)(ADDRESS)))\n'  +
+      '#define HW64_REG(ADDRESS)  (*((volatile unsigned long long *)(ADDRESS)))\n'  +
+      '#define HW32_REG(ADDRESS)  (*((volatile unsigned int  *)(ADDRESS)))\n'  +
+      '#define HW16_REG(ADDRESS)  (*((volatile unsigned short *)(ADDRESS)))\n'  +
+      '#define HW8_REG(ADDRESS)   (*((volatile unsigned char  *)(ADDRESS)))\n'  +
+
+      'typedef union {\n'  +
+      '  uint128_t val128;\n'  +
+      '  int64x2_t val64;\n'  +
+      '  int32x4_t val32;\n'  +
+      '  int16x8_t val16;\n'  +
+      '  int8x16_t val8;\n'  +
+      '} smiv128_t;\n'  +
+
+      'smiv128_t weight128;\n'  +
+      'smiv128_t read_data;\n' )
+
+  def parse_fpga_results(self, file_in, file_out):
+    """
+    this function will parse the results returned by FPGA simulation
+    """
+    result_dict = {}
+    ider = '[read_out]:'
+    with open(file_in, 'r') as fin:
+      raw_in = fin.readlines()
+    for l in raw_in:
+      if ider not in l:
+        continue
+      else:
+        result_dict.update(json.loads(l[len(ider):]))
+    with open(file_out, 'w') as fout:
+      json.dump(result_dict, fout, indent=4)
   

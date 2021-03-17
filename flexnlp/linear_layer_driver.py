@@ -221,14 +221,17 @@ class linear_layer_driver:
                              './test/ly_float_result.tmp',
                              1, self.num_ts, self.num_v_in, self.num_v_out, self.bias_act)
   
-    self.result = np.fromfile('./test/ly_float_result.tmp', sep = '\n')
+    self.result_ila = np.fromfile('./test/ly_float_result.tmp', sep = '\n')
   
-  def result_analysis(self, is_verbose):
+  def result_analysis(self, is_verbose = 0, is_fpga = 0):
     print('\n--------------------------------------------------------------')
     print('\tanalyze ILA simulation result')
     print('--------------------------------------------------------------\n')
     for i in range(self.num_ts):
-      result_ts = self.result[self.num_v_out*16*i : self.num_v_out*16*(i+1)]
+      if is_fpga:
+        result_ts = self.result_fpga[self.num_v_out*16*i : self.num_v_out*16*(i+1)]
+      else:
+        result_ts = self.result_ila[self.num_v_out*16*i : self.num_v_out*16*(i+1)]
       ref = self.ref[i]
       err_out, err_ref = self.tl.cal_error(result_ts, ref)
       print("result timestep No.{} --- relative error (vs. sim_out): {:5.5%}\
@@ -237,9 +240,12 @@ class linear_layer_driver:
         print("reference output: \n{}\nresult: \n{}\n".format(ref, result_ts))
 
   # --------------------------------------
-  # dump axi commands
+  # invoke FPGA simulation
   # --------------------------------------
   def gen_axi_cmds(self, base_addr):
+    """
+    dump FPGA axi commands and simulatino c script
+    """
     print('\n--------------------------------------------------------------')
     print('\tgenerate axi commands for FlexNLP')
     print('--------------------------------------------------------------\n')
@@ -248,7 +254,39 @@ class linear_layer_driver:
     self.ila_cvtr.dump_axi_cmds('./test/ly_axi_cmd.csv', base_addr)
     print('*** axi commands has been dumped to ./test/ly_axi_cmd.csv ***')
 
-  def run(self):
+
+  def invoke_fpga_simulation(self):
+    """
+    call to FPGA simulation
+    """
+    # TODO: implement FPGA invoke
+    # 1. implement the call cmds to invoke fpga simulation
+    # 2. specify the fpga output result path
+    # 3. put the output file name in the next function's (collect_fpga_results) argument.
+    print('\n--------------------------------------------------------------')
+    print('\tcalling FlexNLP FPGA simulation')
+    print('--------------------------------------------------------------\n')
+    # some example command
+    cmd_list = ['echo', 'hello_world']
+    subprocess.run(cmd_list)
+    pass
+
+  def collect_fpga_results(self, in_path = 'temp_file_path'):
+    """
+    parse the FPGA simulation results
+    """
+    print('\n--------------------------------------------------------------')
+    print('\tParsing and collect FlexNLP FPGA simulation results')
+    print('--------------------------------------------------------------\n')
+    self.tl.parse_fpga_results(in_path, './test/ly_fpga_adpf_result.tmp')
+    self.tl.axi_out_to_float('./test/ly_fpga_adpf_result.tmp', './test/ly_fpga_float_result.tmp')
+    self.result_fpga = np.fromfile('./test/ly_fpga_float_result.tmp', sep = '\n')
+  
+  # ----------------------------------------
+  # functions for executing driver
+  # ----------------------------------------
+
+  def run(self, is_fpga = 0):
     subprocess.run(['mkdir', '-p', 'npy', 'test', 'data'])
     self.collect_data()
     # driver needs producing reference result is to get output activation adpbias
@@ -257,13 +295,14 @@ class linear_layer_driver:
     self.produce_ly_asm()
     self.gen_prog_frag()
     self.gen_axi_cmds('0xA0000000')
-    self.invoke_ila_simulator()
-    self.get_ila_sim_result()
-
-    
-    # self.result_analysis()
-    # dump result
-    self.result.tofile('./data/result.txt', sep = '\n')
+    if not is_fpga:
+      self.invoke_ila_simulator()
+      self.get_ila_sim_result()
+      self.result_ila.tofile('./data/result.txt', sep='\n')
+    else:
+      self.invoke_fpga_simulation()
+      self.collect_fpga_results()
+      self.result_fpga.tofile('./data/result.txt', sep = '\n')
   
   def run_test(self):
     subprocess.run(['mkdir', '-p', 'npy', 'test', 'data'])
@@ -273,6 +312,8 @@ class linear_layer_driver:
     self.get_ila_sim_result()
     self.result_analysis(0)
     self.gen_axi_cmds('0xA0000000')
+    # self.invoke_fpga_simulation()
+    # self.collect_fpga_results()
 
   def clean_up(self):
     for file in os.listdir('./test'):
