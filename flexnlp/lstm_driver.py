@@ -254,11 +254,11 @@ class lstm_layer_driver:
                              './test/lstm_float_result.tmp',
                              1, self.num_ts, self.num_v_in, self.num_v_out, self.bias_act)
   
-    self.result = np.fromfile('./test/lstm_float_result.tmp', sep = '\n')
+    self.result_ila = np.fromfile('./test/lstm_float_result.tmp', sep = '\n')
 
 
   # --------------------------------------
-  # dump axi commands
+  # invoke FPGA simulation
   # --------------------------------------
   def gen_axi_cmds(self, base_addr = '0x33000000'):
     print('\n--------------------------------------------------------------')
@@ -268,6 +268,37 @@ class lstm_layer_driver:
       self.ila_cvtr = cvtr('./test/lstm_asm.json', './test/lstm_data_lib.json')
     self.ila_cvtr.dump_axi_cmds('./test/lstm_axi_cmd.csv', base_addr)
     print('*** axi commands has been dumped to ./test/lstm_axi_cmd.csv ***')
+
+
+  def invoke_fpga_simulation(self):
+    """
+    call to FPGA simulation
+    """
+    # TODO: implement FPGA invoke
+    # 1. implement the call cmds to invoke fpga simulation
+    # 2. specify the fpga output result path
+    # 3. put the output file name in the next function's (collect_fpga_results) argument.
+    print('\n--------------------------------------------------------------')
+    print('\tcalling FlexNLP FPGA simulation')
+    print('--------------------------------------------------------------\n')
+    # some example command
+    cmd_list = ['echo', 'hello_world']
+    subprocess.run(cmd_list)
+    pass
+
+  def collect_fpga_results(self, in_path = './test/fpga_output.txt'):
+    """
+    parse the FPGA simulation results
+    """
+    print('\n--------------------------------------------------------------')
+    print('\tParsing and collect FlexNLP FPGA simulation results')
+    print('--------------------------------------------------------------\n')
+    self.tl.parse_fpga_results(in_path, './test/lstm_fpga_adpf_result.tmp')
+    self.tl.axi_out_to_float_fpga('./test/lstm_fpga_adpf_result.tmp', './test/lstm_fpga_float_result.tmp',
+                             1, self.num_ts, self.num_v_in, self.num_v_out, self.bias_act)
+    self.result_fpga = np.fromfile('./test/lstm_fpga_float_result.tmp', sep = '\n')
+    print('*** DONE ***')
+
 
   def run_test(self, use_relay=1, verbose_analysis=0):
     subprocess.run(['mkdir', '-p', 'npy', 'test', 'data'])
@@ -287,13 +318,16 @@ class lstm_layer_driver:
     self.collect_data()
     self.produce_lstm_data_lib()
     self.gen_prog_frag()
-    self.invoke_ila_simulator()
-    self.get_ila_sim_result()
-    self.gen_axi_cmds(
-      '0xA0000000'
-    )
-    # dump result
-    self.result.tofile('./data/lstm_out.txt', sep = '\n')
+    if not os.getenv('USE_3LA_FPGA'):
+      self.invoke_ila_simulator()
+      self.get_ila_sim_result()
+      self.result_ila.tofile('./data/lstm_out.txt', sep='\n')
+    else:
+      self.gen_axi_cmds('0xA0000000')
+      self.invoke_fpga_simulation()
+      self.collect_fpga_results()
+      self.result_fpga.tofile('./data/lstm_out.txt', sep = '\n')
+
     print('\n*** lstm output has been dump to ./data/lstm_out.txt ***')
 
   ##########################################
