@@ -95,7 +95,7 @@ class Converter:
         #   )
         self.test_vec_rd_list.append(
           'read_data.val128 = HW128_REG(' + addr + ');\n' + \
-          'printf("[read_out]: {\\"0x%llx\\" : \\"0x%016llx%016llx\\"}\\n",' + addr + \
+          'printf("[read_out]: {\\"0x%llX\\" : \\"0x%016llx%016llx\\"}\\n",' + addr + \
           ', read_data.val64[1], read_data.val64[0]);\n'
         )
   
@@ -132,18 +132,16 @@ class Converter:
     self.tl = tool()
     temp = self.tl.get_axi_cmd_template()
 
-    with open(out_path[:-4]+'_set_wr_cmds.h', 'w') as fout:
-      fout.write("#ifndef SET_AXI_WR_CMDS_H_\n#define SET_AXI_WR_CMDS_H_\n\n")
+    with open(out_path[:-4]+'_set_cmds.h', 'w') as fout:
+      fout.write("#ifndef SET_AXI_CMDS_H_\n#define SET_AXI_CMDS_H_\n\n")
       fout.write(temp)
       fout.write('\nint set_axi_wr_cmds() {\n')
       fout.writelines(self.test_vec_wr_list)
-      fout.write('\n}\n\n#endif\n')
-    with open(out_path[:-4]+'_set_rd_cmds.h', 'w') as fout:
-      fout.write("#ifndef SET_AXI_RD_CMDS_H_\n#define SET_AXI_RD_CMDS_H_\n\n")
-      fout.write(temp)
+      fout.writelines('\n}\n')
       fout.write('\nint set_axi_rd_cmds() {\n')
       fout.writelines(self.test_vec_rd_list)
       fout.write('\n}\n\n#endif\n')
+
   
 
  

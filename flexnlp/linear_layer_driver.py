@@ -271,7 +271,7 @@ class linear_layer_driver:
     subprocess.run(cmd_list)
     pass
 
-  def collect_fpga_results(self, in_path = 'temp_file_path'):
+  def collect_fpga_results(self, in_path = './test/fpga_output.txt'):
     """
     parse the FPGA simulation results
     """
@@ -279,7 +279,8 @@ class linear_layer_driver:
     print('\tParsing and collect FlexNLP FPGA simulation results')
     print('--------------------------------------------------------------\n')
     self.tl.parse_fpga_results(in_path, './test/ly_fpga_adpf_result.tmp')
-    self.tl.axi_out_to_float('./test/ly_fpga_adpf_result.tmp', './test/ly_fpga_float_result.tmp')
+    self.tl.axi_out_to_float_fpga('./test/ly_fpga_adpf_result.tmp', './test/ly_fpga_float_result.tmp',
+                             1, self.num_ts, self.num_v_in, self.num_v_out, self.bias_act)
     self.result_fpga = np.fromfile('./test/ly_fpga_float_result.tmp', sep = '\n')
   
   # ----------------------------------------
@@ -312,9 +313,11 @@ class linear_layer_driver:
     self.get_ila_sim_result()
     self.result_analysis()
     self.gen_axi_cmds('0xA0000000')
+    self.result_ila.tofile('./data/result_ila_sim.txt', sep='\n')
     # self.invoke_fpga_simulation()
-    # self.collect_fpga_results()
+    self.collect_fpga_results()
     # self.result_analysis(is_fpga = 1)
+    self.result_fpga.tofile('./data/result_fpga_sim.txt', sep = '\n')
 
   def clean_up(self):
     for file in os.listdir('./test'):

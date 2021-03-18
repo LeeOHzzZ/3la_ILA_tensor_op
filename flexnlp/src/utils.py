@@ -195,6 +195,31 @@ class tool:
 
     self.call_adpt_float_cvtr('./test/ila_result.tmp', bias, out_path)        
   
+  def axi_out_to_float_fpga(self, in_path, out_path, mem_idx, num_ts, num_vi, num_vo, bias,
+                            base_addr=0xa0500000):
+    """
+    convert the axi read return to floating point data
+    TODO: temporally solution to deal with the offset of fpga.
+    """
+    with open(in_path, 'r') as fin:
+      v_data = json.load(fin)
+    data_list = []
+    # mem_base = self.get_gb_base_addr_1(num_ts, num_vi)*16 # byte level address
+    mem_base = 0 if mem_idx == 0 else self.get_gb_base_addr_1(num_ts, num_vi)*16
+
+    for ts_idx in range(num_ts):
+      for v_idx in range(num_vo):
+        addr = mem_base + self.get_gb_large_addr_offset(ts_idx, num_vo, v_idx) + base_addr
+        addr_str = '0x{:08X}'.format(addr)
+        data_str = v_data[addr_str][2:]
+        assert len(data_str) == 32, "wrong length for ILA simulator return result"
+        for b_idx in range(16):
+          data_list.append('0x{}\n'.format(data_str[30-2*b_idx:32-2*b_idx]))
+
+    with open('./test/ila_result.tmp', 'w') as fout:
+      fout.writelines(data_list)
+
+    self.call_adpt_float_cvtr('./test/ila_result.tmp', bias, out_path)     
 
   def get_gb_large_addr_offset(self, ts_idx, num_vector, vector_idx):
     # calculate the start address offset in the gbcore large buffer
