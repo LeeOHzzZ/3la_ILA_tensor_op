@@ -106,24 +106,14 @@ class pooling_layer_driver:
     self.ila_cvtr.dump_ila_asm('./test/pooling_ila_asm.json')
     self.ila_cvtr.dump_ila_prog_frag('./test/pooling_prog_frag_in.json')
     print('*** ILA program fragment has been dumped to ./test/pooling_prog_frag_in.json***\n')
-  
-  def invoke_ila_simulator(self):
-    print('\n--------------------------------------------------------------')
-    print('\tinvoking ILA simulator')
-    print('--------------------------------------------------------------\n')
-    self.tl.call_ila_simulator('./test/pooling_prog_frag_in.json',
-                               './test/pooling_adpf_result.tmp')
 
-  def get_ila_sim_result(self):
-    print('\n--------------------------------------------------------------')
-    print('\tcollecting ILA simulation result')
-    print('--------------------------------------------------------------\n')
-    self.tl.axi_out_to_float('./test/pooling_adpf_result.tmp',
-                             './test/pooling_float_result.tmp',
-                             0, self.num_ts >> 1, self.num_v_in, self.num_v_in, self.bias_inp)
-  
-    self.result = np.fromfile('./test/pooling_float_result.tmp', sep = '\n')
-
+  def collect_ila_result(self):
+    """
+    run ila simulation and collect the result
+    """
+    self.result_ila = self.tl.collect_ila_result(in_path='./test/pooling_prog_frag_in.json',
+                      mem_idx=0, num_ts=self.num_ts >> 1, 
+                      num_vi=self.num_v_in, num_vo=self.num_v_in, bias=self.bias_inp)
 
   # --------------------------------------
   # dump axi commands
@@ -143,8 +133,7 @@ class pooling_layer_driver:
     self.produce_random_test_data()
     self.produce_pooling_data_lib()
     self.gen_prog_frag()
-    self.invoke_ila_simulator()
-    self.get_ila_sim_result()
+    self.collect_ila_result()
     self.gen_axi_cmds('0xA0000000')
     self.produce_ref_result()
     self.result_analysis(verbose_analysis)
@@ -187,7 +176,8 @@ class pooling_layer_driver:
     print('\tanalyze ILA simulation result')
     print('--------------------------------------------------------------\n')
     for i in range(self.num_ts >> 1):
-      result_ts = self.result[self.num_v_in*16*i : self.num_v_in*16*(i+1)]
+      if not os.environ.get('USE_3LA_FPGA'):
+        result_ts = self.result_ila[self.num_v_in*16*i : self.num_v_in*16*(i+1)]
       ref = self.tl.get_adpfloat_bias(self.ref_out[i])[0]
       err_out, err_ref = self.tl.cal_error(result_ts, ref)
       print("result timestep No.{} --- relative error (vs. sim_out): {:5.5%}\

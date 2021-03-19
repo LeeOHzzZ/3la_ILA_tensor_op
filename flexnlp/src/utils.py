@@ -196,7 +196,7 @@ class tool:
     self.call_adpt_float_cvtr('./test/ila_result.tmp', bias, out_path)        
   
   def axi_out_to_float_fpga(self, in_path, out_path, mem_idx, num_ts, num_vi, num_vo, bias,
-                            base_addr=0xa0500000):
+                            base_addr='0xa0500000'):
     """
     convert the axi read return to floating point data
     TODO: temporally solution to deal with the offset of fpga.
@@ -209,7 +209,7 @@ class tool:
 
     for ts_idx in range(num_ts):
       for v_idx in range(num_vo):
-        addr = mem_base + self.get_gb_large_addr_offset(ts_idx, num_vo, v_idx) + base_addr
+        addr = mem_base + self.get_gb_large_addr_offset(ts_idx, num_vo, v_idx) + int(base_addr,16)
         addr_str = '0x{:08X}'.format(addr)
         data_str = v_data[addr_str][2:]
         assert len(data_str) == 32, "wrong length for ILA simulator return result"
@@ -242,8 +242,20 @@ class tool:
   def get_pe_base_bias_v_2(self, num_v_in, num_v_out):
     # get bias base address in pe input buffer for hidden state
     return self.get_pe_base_bias_v_1(num_v_in) + num_v_out*2 + 0x20
-
-
+  
+  """
+  for invoking ILA simulator 
+  """
+  def collect_ila_result(self, in_path, mem_idx, num_ts, num_vi, num_vo, bias):
+    print('\n--------------------------------------------------------------')
+    print('\tinvoking ILA simulator')
+    print('--------------------------------------------------------------\n')
+    self.call_ila_simulator(in_path, './test/adpf_result.tmp')
+    self.axi_out_to_float(in_path = './test/adpf_result.tmp', 
+                          out_path = './test/float_result.tmp',
+                          mem_idx = mem_idx, num_ts = num_ts, num_vi = num_vi,
+                          num_vo = num_vo, bias = bias)
+    return np.fromfile('./test/float_result.tmp', sep='\n')
   """
   for generating FPGA source code file
   """
@@ -277,6 +289,7 @@ class tool:
       'smiv128_t weight128;\n'  +
       'smiv128_t read_data;\n' )
 
+
   def parse_fpga_results(self, file_in, file_out):
     """
     this function will parse the results returned by FPGA simulation
@@ -293,3 +306,32 @@ class tool:
     with open(file_out, 'w') as fout:
       json.dump(result_dict, fout, indent=4)
   
+  """
+  for invoking FPGA simulation
+  """
+  def collect_fpga_results(self, mem_idx, num_ts, num_vi, num_vo, bias, base_addr):
+    """
+    call to FPGA simulation
+    """
+    # TODO: implement FPGA invoke
+    # 1. implement the call cmds to invoke fpga simulation
+    # 2. specify the fpga output result path
+    # 3. put the output file name in the next function's (collect_fpga_results) argument.
+    print('\n--------------------------------------------------------------')
+    print('\tcalling FlexNLP FPGA simulation')
+    print('--------------------------------------------------------------\n')
+    # some example command
+    # fpga axi header is at './test/fpga_axi_set_cmds.h'
+    cmd_list = ['echo', 'hello_world']
+    subprocess.run(cmd_list)
+    """
+    parse the FPGA simulation results
+    """
+    print('\n--------------------------------------------------------------')
+    print('\tParsing and collect FlexNLP FPGA simulation results')
+    print('--------------------------------------------------------------\n')
+    self.parse_fpga_results('./test/fpga_output.txt', './test/fpga_adpf_result.tmp')
+    self.axi_out_to_float_fpga('./test/fpga_adpf_result.tmp', './test/fpga_float_result.tmp',
+                             mem_idx = mem_idx, num_ts = num_ts, 
+                             num_vi = num_vi, num_vo = num_vo, bias=bias, base_addr=base_addr)
+    return np.fromfile('./test/fpga_float_result.tmp', sep = '\n')

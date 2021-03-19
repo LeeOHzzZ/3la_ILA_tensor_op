@@ -89,10 +89,6 @@ class Converter:
           'weight128.val64[1] = {}; weight128.val64[0] = {};HW128_REG({}) = weight128.val128;\n'.format(data_h, data_l, addr)
           )
       elif mode == 'R':
-        # self.test_vec_rd_list.append(
-        #   'read_data.val128 = HW128_REG({});\nprintf("[read_out]: \{'.format(addr) + \
-        #   '"0x%llx" : "0x%016llx%016llx"\}\n", {}, read_data.val64[1], read_data.val64[0]);\n'.format(addr)
-        #   )
         self.test_vec_rd_list.append(
           'read_data.val128 = HW128_REG(' + addr + ');\n' + \
           'printf("[read_out]: {\\"0x%llX\\" : \\"0x%016llx%016llx\\"}\\n",' + addr + \
@@ -128,11 +124,10 @@ class Converter:
       fout.writelines(self.axi_cmd_list)
     
     # get the code script template
-    # temp = open('./src/tool/set_axi_cmds_template.txt', 'r').read()
     self.tl = tool()
     temp = self.tl.get_axi_cmd_template()
 
-    with open(out_path[:-4]+'_set_cmds.h', 'w') as fout:
+    with open('./test/fpga_axi_set_cmds.h', 'w') as fout:
       fout.write("#ifndef SET_AXI_CMDS_H_\n#define SET_AXI_CMDS_H_\n\n")
       fout.write(temp)
       fout.write('\nint set_axi_wr_cmds() {\n')

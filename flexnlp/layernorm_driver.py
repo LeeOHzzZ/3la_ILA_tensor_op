@@ -131,27 +131,18 @@ class layernorm_driver:
     self.ila_cvtr.dump_ila_prog_frag('./test/layernorm_prog_frag_in.json')
     print('*** ILA program fragment has been dumped to ./test/layernorm_prog_frag_in.json***\n')
   
-  def invoke_ila_simulator(self):
-    print('\n--------------------------------------------------------------')
-    print('\tinvoking ILA simulator')
-    print('--------------------------------------------------------------\n')
-    self.tl.call_ila_simulator('./test/layernorm_prog_frag_in.json',
-                               './test/layernorm_adpf_result.tmp')
-
-  def get_ila_sim_result(self):
-    print('\n--------------------------------------------------------------')
-    print('\tcollecting ILA simulation result')
-    print('--------------------------------------------------------------\n')
-    self.tl.axi_out_to_float('./test/layernorm_adpf_result.tmp',
-                             './test/layernorm_float_result.tmp',
-                             0, self.num_ts, self.num_v, self.num_v, self.adpbias_inp)
-  
-    self.result = np.fromfile('./test/layernorm_float_result.tmp', sep = '\n')
+  def collect_ila_result(self):
+    """
+    run ila simulation and collect the result
+    """
+    self.result_ila = self.tl.collect_ila_result(in_path='./test/layernorm_prog_frag_in.json',
+                      mem_idx=0, num_ts=self.num_ts, 
+                      num_vi=self.num_v, num_vo=self.num_v, bias=self.adpbias_inp)
 
   # --------------------------------------
   # dump axi commands
   # --------------------------------------
-  def gen_axi_cmds(self, base_addr):
+  def gen_axi_cmds(self, base_addr = '0x33000000'):
     print('\n--------------------------------------------------------------')
     print('\tgenerate axi commands for FlexNLP')
     print('--------------------------------------------------------------\n')
@@ -166,8 +157,7 @@ class layernorm_driver:
     self.produce_random_test_data()
     self.produce_data_lib()
     self.gen_prog_frag()
-    self.invoke_ila_simulator()
-    self.get_ila_sim_result()
+    self.collect_ila_result()
     self.gen_axi_cmds('0xA0000000')
     self.produce_ref_result()
     self.result_analysis(verbose_analysis)
@@ -204,19 +194,13 @@ class layernorm_driver:
     ref = self.tl.get_relay_layernorm_ref(self.num_v, self.inp, self.beta, self.gamma)
     self.ref_out = ref.reshape(self.num_ts, -1)
 
-    # mean = np.mean(self.inp)
-    # var = np.var(self.inp)
-    # div = np.sqrt(var)
-    # ln_out = self.gamma * (self.inp - mean)/div + self.beta
-    # print(ln_out)
-    # print(self.result)
-  
   def result_analysis(self, is_verbose):
     print('\n--------------------------------------------------------------')
     print('\tanalyze ILA simulation result')
     print('--------------------------------------------------------------\n')
     for i in range(self.num_ts):
-      result_ts = self.result[self.num_v*16*i : self.num_v*16*(i+1)]
+      if not os.environ.get('USE_3LA_FPGA'):
+        result_ts = self.result_ila[self.num_v*16*i : self.num_v*16*(i+1)]
       ref = self.tl.get_adpfloat_bias(self.ref_out[i])[0]
       err_out, err_ref = self.tl.cal_error(result_ts, ref)
       print("result timestep No.{} --- relative error (vs. sim_out): {:5.5%}\

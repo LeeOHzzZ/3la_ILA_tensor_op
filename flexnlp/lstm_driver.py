@@ -239,22 +239,13 @@ class lstm_layer_driver:
     self.ila_cvtr.dump_ila_prog_frag('./test/lstm_prog_frag_in.json')
     print('*** ILA program fragment has been dumped to ./test/lstm_prog_frag_in.json***\n')
   
-  def invoke_ila_simulator(self):
-    print('\n--------------------------------------------------------------')
-    print('\tinvoking ILA simulator')
-    print('--------------------------------------------------------------\n')
-    self.tl.call_ila_simulator('./test/lstm_prog_frag_in.json',
-                               './test/lstm_adpf_result.tmp')
-
-  def get_ila_sim_result(self):
-    print('\n--------------------------------------------------------------')
-    print('\tcollecting ILA simulation result')
-    print('--------------------------------------------------------------\n')
-    self.tl.axi_out_to_float('./test/lstm_adpf_result.tmp',
-                             './test/lstm_float_result.tmp',
-                             1, self.num_ts, self.num_v_in, self.num_v_out, self.bias_act)
-  
-    self.result_ila = np.fromfile('./test/lstm_float_result.tmp', sep = '\n')
+  def collect_ila_result(self):
+    """
+    run ila simulation and collect the result
+    """
+    self.result_ila = self.tl.collect_ila_result(in_path='./test/lstm_prog_frag_in.json',
+                      mem_idx=1, num_ts=self.num_ts, 
+                      num_vi = self.num_v_in, num_vo=self.num_v_out, bias=self.bias_act);
 
 
   # --------------------------------------
@@ -269,36 +260,15 @@ class lstm_layer_driver:
     self.ila_cvtr.dump_axi_cmds('./test/lstm_axi_cmd.csv', base_addr)
     print('*** axi commands has been dumped to ./test/lstm_axi_cmd.csv ***')
 
-
-  def invoke_fpga_simulation(self):
+  def collect_fpga_results(self, base_addr = '0xA0500000'):
     """
-    call to FPGA simulation
+    run FlexNLP FPGA simulation and collect the results
+    TODO: base address here should set as 0xA0500000, which is the base address of the 
+    GB large buffer of FlexNLP on FPGA
     """
-    # TODO: implement FPGA invoke
-    # 1. implement the call cmds to invoke fpga simulation
-    # 2. specify the fpga output result path
-    # 3. put the output file name in the next function's (collect_fpga_results) argument.
-    print('\n--------------------------------------------------------------')
-    print('\tcalling FlexNLP FPGA simulation')
-    print('--------------------------------------------------------------\n')
-    # some example command
-    cmd_list = ['echo', 'hello_world']
-    subprocess.run(cmd_list)
-    pass
-
-  def collect_fpga_results(self, in_path = './test/fpga_output.txt'):
-    """
-    parse the FPGA simulation results
-    """
-    print('\n--------------------------------------------------------------')
-    print('\tParsing and collect FlexNLP FPGA simulation results')
-    print('--------------------------------------------------------------\n')
-    self.tl.parse_fpga_results(in_path, './test/lstm_fpga_adpf_result.tmp')
-    self.tl.axi_out_to_float_fpga('./test/lstm_fpga_adpf_result.tmp', './test/lstm_fpga_float_result.tmp',
-                             1, self.num_ts, self.num_v_in, self.num_v_out, self.bias_act)
-    self.result_fpga = np.fromfile('./test/lstm_fpga_float_result.tmp', sep = '\n')
-    print('*** DONE ***')
-
+    self.result_fpga = self.tl.collect_fpga_results(mem_idx=1, num_ts=self.num_ts,
+                       num_vi=self.num_v_in, num_vo=self.num_v_out, bias=self.bias_act,
+                       base_addr=base_addr)
 
   def run_test(self, use_relay=1, verbose_analysis=0):
     subprocess.run(['mkdir', '-p', 'npy', 'test', 'data'])
@@ -306,8 +276,7 @@ class lstm_layer_driver:
     self.produce_random_test_data()
     self.produce_lstm_data_lib()
     self.gen_prog_frag()
-    self.invoke_ila_simulator()
-    self.get_ila_sim_result()
+    self.collect_ila_result()
     self.gen_axi_cmds('0xA0000000')
     self.produce_ref_result(use_relay)
     self.result_analysis(verbose_analysis)
@@ -319,12 +288,10 @@ class lstm_layer_driver:
     self.produce_lstm_data_lib()
     self.gen_prog_frag()
     if not os.getenv('USE_3LA_FPGA'):
-      self.invoke_ila_simulator()
-      self.get_ila_sim_result()
+      self.collect_ila_result()
       self.result_ila.tofile('./data/lstm_out.txt', sep='\n')
     else:
       self.gen_axi_cmds('0xA0000000')
-      self.invoke_fpga_simulation()
       self.collect_fpga_results()
       self.result_fpga.tofile('./data/lstm_out.txt', sep = '\n')
 
@@ -363,7 +330,6 @@ class lstm_layer_driver:
         coef * np.random.uniform(-1, 1, (4*16*self.num_v_out)).astype(np.float32)
       bias_h_init = \
         coef * np.random.uniform(-1, 1, (4*16*self.num_v_out)).astype(np.float32)
-      # bias_h_init = np.zeros((4*16*self.num_v_out), dtype = np.float32)
 
     else:
       bias_i_init = np.zeros((4*16*self.num_v_out), dtype = np.float32)
@@ -464,7 +430,10 @@ class lstm_layer_driver:
     print('\tanalyze ILA simulation result')
     print('--------------------------------------------------------------\n')
     for i in range(self.num_ts):
-      result_ts = self.result[self.num_v_out*16*i : self.num_v_out*16*(i+1)]
+      if not os.environ.get('USE_3LA_FPGA'):
+        result_ts = self.result_ila[self.num_v_out*16*i : self.num_v_out*16*(i+1)]
+      else:
+        result_ts = self.result_fpga[self.num_v_out*16*i : self.num_v_out*16*(i+1)]
       ref = self.ref_out[i]
       err_out, err_ref = self.tl.cal_error(result_ts, ref)
       print("result timestep No.{} --- relative error (vs. sim_out): {:5.5%}\
