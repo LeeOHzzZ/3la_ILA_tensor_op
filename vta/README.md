@@ -93,4 +93,17 @@ VTA GEMM will perform matrix-matrix/vector multiplication with inputs from `inpu
   - `wgt_fi`: Inner loop weight tensor index increment factor
 
 ### ALU
-**Work In Progress**
+VTA ALU will perform vector level alu instructions including: min, max, shr, add
+- `alu [reset_f], [uop_bgn], [uop_end], [iter_o], [iter_i], [dst_fo], [dst_fi], [src_fo], [src_fi], [alu_op], [use_imm], [imm]
+  - `reset_f`: reset accumulator after multiplication
+  - `uop_bgn`: begining idx of micro_op in the uop buffer for gemm
+  - `uop_end`: ending idx of micro_op in the uop buffer for gemm
+  - `iter_o`: Outer loop iterations
+  - `iter_i`: Inner loop iterations
+  - `dst_fo`: Outer loop accumulator (bias) tensor index increment factor
+  - `dst_fi`: Inner loop accumulator (bias) index increment factor
+  - `src_fo`: Outer loop input tensor index increment factor
+  - `src_fi`: Inner loop input tensor index increment factor
+  - `alu_op`: 0 - min; 1 - max; 2 - add; 3 - shr
+  - `use_imm`: whether 2nd op of the alu instruction is immediate
+  - `imm`: immediate value
