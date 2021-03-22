@@ -18,7 +18,7 @@ class asm_prog_frag_converter:
     return self.prog_frag
   
   def generate_ila_prog_frag(self, asm):
-    asm_types = ['SpadWr', 'VirMemWr']
+    asm_types = ['SpadWr', 'VirMemWr', 'SpadRd']
     asm_types += ['CfgSoCMemBaseAddr', 'CfgSoCMemRdWrLen']
     asm_types += ['CfgConvActBaseAddr', 'CfgConvWgtBaseAddr', 'CfgConvOutBaseAddr']
     asm_types += ['CfgConvInpSize', 'CfgConvOutSize', 'CfgConvKernelSize', 'CfgConvChan']
@@ -29,11 +29,13 @@ class asm_prog_frag_converter:
     
     if asm['name'] == 'SpadWr':
       return self.__gen_spad_write(asm)
+    if asm['name'] == 'SpadRd':
+      return self.__gen_spad_read(asm)
     if asm['name'] == 'VirMemWr':
       return self.__gen_vir_mem_write(asm)
     if asm['name'] == 'CfgSoCMemBaseAddr':
       return self.__gen_cfg_soc_mem_base_addr(asm)
-    if asm['name'] == 'CfgSoCMemRdWrlen':
+    if asm['name'] == 'CfgSoCMemRdWrLen':
       return self.__gen_cfg_soc_mem_rd_wr_len(asm)
     if asm['name'] == 'CfgConvActBaseAddr':
       return self.__gen_cfg_conv_act_base_addr(asm)
@@ -51,6 +53,8 @@ class asm_prog_frag_converter:
       return self.__gen_cfg_conv_channel(asm)
     if asm['name'] == 'ConvStart':
       return self.__gen_conv_trigger(asm)
+    
+    raise NameError('Double check the asm name in the parser!')
 
 
   # ------------------------------------------------------------
@@ -74,6 +78,13 @@ class asm_prog_frag_converter:
     # SPAD0 address: 0x04000 ~ 0x24000 (20KB)
     # SPAD1 address: 0x24000 ~ 0x44000
     return self.__produce_insn(asm['addr'], '0x0', 'W')
+  
+  def __gen_spad_read(self, asm):
+    # assembly: SpadRd [addr]
+    # [addr]: hex string of SPAD address to read
+    # SPAD0 address: 0x04000 ~ 0x24000 
+    # SPAD1 address: 0x24000 ~ 0x44000
+    return self.__produce_insn(asm['addr'], '0x0', 'R')
 
   def __gen_vir_mem_write(self, asm):
     # assembly: VirMemWr [addr], [data]
@@ -111,11 +122,10 @@ class asm_prog_frag_converter:
   def __gen_cfg_soc_mem_rd_wr_len(self, asm):
     # assembly: CfgSocMemRdWrLen [length]
     # [length]: int of rd/wr operation length
-    # TODO: This value is not used by ILA model for now
     reg_id = 5
     addr = self.__gen_config_reg_addr(reg_id)
     data_start_offset = self.__gen_config_data_offset(reg_id)
-    data = hex(int(asm['length'], base=16)) + data_start_offset*2*'0'
+    data = hex(asm['length']) + data_start_offset*2*'0'
     return self.__produce_insn(addr, data, 'W')
 
   def __gen_cfg_conv_act_base_addr(self, asm):
@@ -194,23 +204,28 @@ class asm_prog_frag_converter:
     return self.__produce_insn(addr, data, 'W')
   
   def __gen_cfg_kernel_size(self, asm):
-    # assembly: CfgConvKernelSize [kernel_cols], [kernel_rows], [kernel_stride]
+    # assembly: CfgConvKernelSize [kernel_cols], [kernel_rows], [kernel_c_stride], [kernel_r_stride]
     # [kernel_cols]: int of kernel columns of the convolution
     # [kernel_rows]: int of kernel rows of the convolution
-    # [kernel_stride]: int of kernel stride
+    # [kernel_c_stride]: int of kernel column stride
+    # [kernel_r_stride]: int of kernel row stride
     # // Layout of the AccelKernelSizeConfig register.
     # //
     # // | Unused | Kernel Stride | Kernel rows | Kernel cols |
     # // ------------------------------------------------------
-    # // |  31-24 |    23:16      |    15-8     |     7-0     |
+    # // |  31-24 |    21:16      |    15-8     |     7-0     |
     # // ------------------------------------------------------
+    # kernel_c_stride is [18:16]
+    # kernel_r_stride is [21:19]
     reg_id = 23
     addr = self.__gen_config_reg_addr(reg_id)
     data_start_offset = self.__gen_config_data_offset(reg_id)
     cols = asm['kernel_cols']
     rows = asm['kernel_rows']
-    stride = asm['kernel_stride']
-    data = hex(int(self.__gen_binary_string(stride, 8)
+    c_stride = asm['kernel_c_stride']
+    r_stride = asm['kernel_r_stride']
+    data = hex(int(self.__gen_binary_string(r_stride, 3)
+               + self.__gen_binary_string(c_stride, 3)
                + self.__gen_binary_string(rows, 8)
                + self.__gen_binary_string(cols, 8),
                base = 2)) + data_start_offset*2*'0'
@@ -224,6 +239,7 @@ class asm_prog_frag_converter:
     # [is_accum]: int of whether enable accumulation in the convolution
     # [kernel_num]: int of number of kernels/output channels of the convolution
     # [is_wb]: TODO: int of unclear operation
+    # Warning: HLSCNN's document on this register is wrong!
     # // | Unused| ENABLE_WB |   FILTER_IDX        | ENABLE_ACCUMLATION_ON_OUTPUT_SPAD |ENABLE_RELU         |ENABLE_BIAS|CHANNEL_BIAS         |
     # //
     # // ------------------------------------------------------------------------------------------------------------------
@@ -239,13 +255,14 @@ class asm_prog_frag_converter:
     is_accum = asm['is_accum']
     kernel_num = asm['kernel_num']
     is_wb = asm['is_wb']
-    data = hex(int(self.__gen_binary_string(chan_bias, 16)
-               + self.__gen_binary_string(is_bias, 1)
-               + self.__gen_binary_string(is_relu, 1),
-               + self.__gen_binary_string(is_accum, 1)
-               + self.__gen_binary_string(kernel_num, 3)
-               + self.__gen_binary_string(is_wb, 1),
-               base = 2)) + data_start_offset*2*'0'
+    data = hex(int(
+      self.__gen_binary_string(is_wb, 1)
+      + self.__gen_binary_string(kernel_num, 8)
+      + self.__gen_binary_string(is_accum, 1)
+      + self.__gen_binary_string(is_relu, 1)
+      + self.__gen_binary_string(is_bias, 1)
+      + self.__gen_binary_string(chan_bias, 16), base=2
+    )) + data_start_offset*2*'0'
     return self.__produce_insn(addr, data, 'W')
     
   def __gen_conv_trigger(self, asm):
