@@ -166,7 +166,7 @@ def gen_gemm(asm):
 def gen_alu(asm):
   # assembly format: alu_* reset_f, uop_bgn, uop_end, iter_o, iter_i, dst_fo, dst_fi, src_fo, src_fi, alu_op, use_imm, imm
   unused_bits = \
-      (VTA_INSTR_BITWIDTH/2 - VTA_OPCODE_BITWIDTH - 4 - 1 - VTA_ALU_UOP_BEGIN_BITWIDTH - \
+      (int(VTA_INSTR_BITWIDTH/2) - VTA_OPCODE_BITWIDTH - 4 - 1 - VTA_ALU_UOP_BEGIN_BITWIDTH - \
        VTA_ALU_UOP_END_BITWIDTH - VTA_ALU_ITER_OUT_BITWIDTH - VTA_ALU_ITER_IN_BITWIDTH)
   
   bin_instr_l = unused_bits * '0' + \
