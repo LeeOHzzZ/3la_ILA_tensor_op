@@ -23,8 +23,6 @@ class Converter:
     cvtr = ts_cvtr(self.ts_asm_list, self.data_lib)
     self.asm_list = cvtr.to_ila_asm()
     self.is_to_asm = True
-    # for asm in self.ts_asm_list:
-    #   self.asm_list += (ts_cvtr.generate_ila_asm(self, asm))
   
   def to_ila_prog_frag(self):
     """

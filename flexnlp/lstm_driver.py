@@ -110,8 +110,24 @@ class lstm_layer_driver:
     """
     get quantized inputs, weights and bias
     """
-    wgt_i_q, adpbias_wgt_i = self.tl.get_adpfloat_bias(self.wgt_i)
-    wgt_h_q, adpbias_wgt_h = self.tl.get_adpfloat_bias(self.wgt_h)
+
+    # need to concatanate wgt_i and wgt_h to get the adpbias
+    wgt_i_shape = self.wgt_i.shape
+    assert len(wgt_i_shape) == 2
+    wgt_i_flatten = self.wgt_i.reshape((wgt_i_shape[0] * wgt_i_shape[1],))
+    wgt_h_shape = self.wgt_h.shape
+    assert len(wgt_h_shape) == 2
+    wgt_h_flatten = self.wgt_h.reshape((wgt_h_shape[0] * wgt_h_shape[1],))
+    wgt_all = np.concatenate((wgt_i_flatten, wgt_h_flatten), axis=0)
+    wgt_all_q, adpbias_wgt = self.tl.get_adpfloat_bias(wgt_all)
+    wgt_i_q = wgt_all_q[0 : wgt_i_shape[0]*wgt_i_shape[1],].reshape(
+      (wgt_i_shape[0], wgt_i_shape[1])
+    )
+    wgt_h_q = wgt_all_q[wgt_i_shape[0]*wgt_i_shape[1] : ,].reshape(
+      (wgt_h_shape[0], wgt_h_shape[1])
+    )
+    
+
     inp_q, adpbias_inp = self.tl.get_adpfloat_bias(self.inp)
     bias_i_q, adpbias_b_i = self.tl.get_adpfloat_bias(self.bias_i)
     bias_h_q, adpbias_b_h = self.tl.get_adpfloat_bias(self.bias_h)
@@ -126,11 +142,12 @@ class lstm_layer_driver:
     print('*** performed bias reshape for PEs ***')
     
     # these adpbias are very likely to be the same
-    assert adpbias_wgt_i == adpbias_wgt_h, \
-      'adpbias_wgt_i({}) != adpbias_wgt_h({})'.format(adpbias_wgt_i, adpbias_wgt_h)
+    # assert adpbias_wgt_i == adpbias_wgt_h, \
+    #   'adpbias_wgt_i({}) != adpbias_wgt_h({})'.format(adpbias_wgt_i, adpbias_wgt_h)
     # assert adpbias_b_i == adpbias_b_h, \
     #   'adpbias_b_i({}) != adpbias_b_h({})'.format(adpbias_b_i, adpbias_b_h)
-    self.bias_wgt = int(adpbias_wgt_i + 10)
+    # self.bias_wgt = int(adpbias_wgt_i + 10)
+    self.bias_wgt = int(adpbias_wgt + 10)
     self.bias_inp = int(adpbias_inp + 10)
     self.bias_b = int(adpbias_b_i + 10)
     self.bias_act = 2 # this is an empirical value
