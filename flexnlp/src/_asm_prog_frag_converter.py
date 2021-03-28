@@ -22,7 +22,7 @@ class asm_prog_frag_converter:
     asm_types += ['pe_cfg_rnn_layer_sizing', 'pe_cfg_mngr']
     asm_types += ['pe_cfg_act_mngr', 'pe_cfg_act_v']
     asm_types += ['cfg_mmngr_gb_large', 'cfg_mmngr_gb_small']
-    asm_types += ['cfg_ly_reduce', 'cfg_gb_ctrl', 'cfg_ly_norm']
+    asm_types += ['cfg_ly_reduce', 'cfg_gb_ctrl', 'cfg_ly_norm', 'cfg_zeropadding', 'cfg_attention']
     asm_types += ['start']
     # wait for interrupt signal added for simulation
     asm_types += ['wait_irq']
@@ -58,6 +58,10 @@ class asm_prog_frag_converter:
       return self.__gen_cfg_gb_ctrl(asm)
     if asm['name'] == 'cfg_ly_norm':
       return self.__gen_cfg_ly_norm(asm)
+    if asm['name'] == 'cfg_zeropadding':
+      return self.__gen_cfg_zeropadding(asm)
+    if asm['name'] == 'cfg_attention':
+      return self.__gen_cfg_attention(asm)
 
     # function trigger instructions
     if asm['name'] == 'start':
@@ -225,6 +229,43 @@ class asm_prog_frag_converter:
     valid_field = '01'
     instr = '0x0' + num_timestep + num_v_field + mem_id_field + rnn_flag_field + mode_field + valid_field
 
+    return self.__produce_insn(addr, instr, 'W')
+  
+  def __gen_cfg_zeropadding(self, asm):
+    # assembly: cfg_zeropad [mem_id], [num_v], [num_ts_1], [num_ts_2]
+    # [mem_id]: the index of the memory to perform zeropadding
+    # [num_v]: the number of the vectors in a timestep
+    # [num_ts_1]: the staring index of the timestep to perform zeropadding
+    # [num_ts_2]: the end index of the timestep to perform zeropadding
+    # zeropadding are done from num_ts_1 to num_ts_2 - 1
+    addr = hex(self.__FLEXNLP_BASE_ADDR + 0x00A00010)
+    num_timestep_field = hex(asm['num_ts_2'])[2:].zfill(4) + hex(asm['num_ts_1'])[2:].zfill(4)
+    num_vector_field = hex(asm['num_v'])[2:].zfill(4)
+    mem_idx_field = hex(asm['mem_id'])[2:].zfill(4)
+    valid_field = '00000001'
+    instr = '0x0' + num_timestep_field + num_vector_field + mem_idx_field + valid_field
+
+    return self.__produce_insn(addr, instr, 'W')
+
+  def __gen_cfg_attention(self, asm):
+    # assembly: cfg_attention [mem_id_1], [mem_id_2], [num_v], [num_ts], [adpbias_1], [adpbias_2], [adpbias_3], [adpbias_4]
+    # [mem_id_1]: memory index of encoder in large buffer
+    # [mem_id_2]: memory index of decoder in large buffer
+    # [num_v]: number of vectors of an encoder/decoder timestep
+    # [num_ts]: number of encoder timesteps
+    # [adpbias_1]: adpfloat bias for encoder output matrix
+    # [adpbias_2]: adpfloat bias for input from encoder 
+    # [adpbias_3]: adpfloat bias for softmax intermediate output 
+    # [adpbias_4]: adpfloat bias for final attention output
+    addr = hex(self.__FLEXNLP_BASE_ADDR + 0x00B00010)
+    adpbias_field = hex(asm['adpbias_4'])[2:].zfill(1) + hex(asm['adpbias_3'])[2:].zfill(1)
+    adpbias_field += hex(asm['adpbias_2'])[2:].zfill(1) + hex(asm['adpbias_1'])[2:].zfill(1)
+    num_ts_field = hex(asm['num_ts'])[2:].zfill(8)
+    num_v_field = hex(asm['num_v']).zfill(4)
+    mem_idx_field = hex(asm['mem_id_2'])[2:].zfill(2) + hex(asm['mem_id_1'])[2:].zfill(2)
+    valid_field = '00000001'
+    instr = '0x' + adpbias_field + num_ts_field + num_v_field + mem_idx_field + valid_field
+    
     return self.__produce_insn(addr, instr, 'W')
 
   # -------------------------------------------

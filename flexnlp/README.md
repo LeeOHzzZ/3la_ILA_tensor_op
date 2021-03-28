@@ -32,6 +32,7 @@ python3 test.py lstm [num_vector_in] [num_vector_out] [num_timestep] [is_bias] [
   - `meanp [num_ts]`
   - `linear_layer [num_ts], [is_bias]`
   - `lstm_layer [num_ts], [is_bias], [is_zero_first]`
+  - `layernorm [num_ts]`
 
 ---
 
@@ -47,6 +48,8 @@ python3 test.py lstm [num_vector_in] [num_vector_out] [num_timestep] [is_bias] [
   - `cfg_ly_reduce [mode], [mem_idx], [num_v], [num_ts]`
   - `cfg_ly_norm [mem_idx], [num_v], [num_ts], [adpbias_inp], [adpbias_beta], [adpbias_gamma]`
   - `cfg_gb_ctrl [mode], [is_rnn], [mem_id_i], [mem_id_o], [num_v_i], [num_v_o], [num_ts]`
+  - `cfg_zeropad [mem_id], [num_v], [num_ts_1], [num_ts_2]`
+  - `cfg_attention [mem_id_1], [mem_id_2], [num_v], [num_ts], [adpbias_1], [adpbias_2], [adpbias_3], [adpbias_4]`
   - `start [op]`
 - Load/Store
   - `write_v [vector_name], [addr]`
