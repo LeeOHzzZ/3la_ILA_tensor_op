@@ -5,6 +5,7 @@ import json
 import sys
 import subprocess
 import numpy as np
+import timeit
 
 # sys.path.append('./tool')
 from .tool.adaptivfloat import quantize_floatext
@@ -250,7 +251,12 @@ class tool:
     print('\n--------------------------------------------------------------')
     print('\tinvoking ILA simulator')
     print('--------------------------------------------------------------\n')
+    # measure the time of ila simulation
+    start_time = timeit.default_timer()
     self.call_ila_simulator(in_path, './test/adpf_result.tmp')
+    end_time = timeit.default_timer()
+    print('\n********* ILA simulator performance ***********')
+    print('ILA simulator execution time is {:04f}s'.format(end_time - start_time))
     self.axi_out_to_float(in_path = './test/adpf_result.tmp', 
                           out_path = './test/float_result.tmp',
                           mem_idx = mem_idx, num_ts = num_ts, num_vi = num_vi,
