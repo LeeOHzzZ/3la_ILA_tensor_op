@@ -2,6 +2,13 @@ import json
 
 from converter import Converter as cvtr
 
+"""
+The Virtual SOC memory in ILA has an offset address of 0x50000
+Thus, when setting ActBase as 0x10000, the vir_mem_wr for act
+should start from 0x10000 + 0x50000 = 0x60000
+"""
+
+
 def gen_test_asm(out_path):
   asm_list = []
   

@@ -111,7 +111,7 @@ class asm_prog_frag_converter:
 
   def __gen_cfg_soc_mem_base_addr(self, asm):
     # assembly: CfgSoCMemBaseAddr [base_addr]
-    # [base_addr]: hex string of base address for SoC memory
+    # [base_addr]: hex string of base address for reading from SoC memory
     # this value is set for reading the data from SoC memory through AXI master interface
     reg_id = 4
     addr = self.__gen_config_reg_addr(reg_id)
