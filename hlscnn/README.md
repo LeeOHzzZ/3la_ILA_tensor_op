@@ -1,7 +1,7 @@
 # ILA assembly for HLSCNN
 This folder contains the specification of ILA assembly instructions for HLSCNN and converter to hlscnn-ila program fragment and HLSCNN AXI commands
 
-### HLSCNN-ILA assemlby
+### HLSCNN-ILA assembly
 - `SpadWr [addr]`
   - `[addr]`: hex string of SPAD address to write
   - SPAD0 address: 0x04000 ~ 0x24000 (20KB)
