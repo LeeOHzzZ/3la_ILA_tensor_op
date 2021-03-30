@@ -294,7 +294,8 @@ class lstm_layer_driver:
     self.produce_lstm_data_lib()
     self.gen_prog_frag()
     self.collect_ila_result()
-    self.gen_axi_cmds('0xA0000000')
+    #self.gen_axi_cmds('0xA0000000')
+    self.gen_axi_cmds()
     self.produce_ref_result(use_relay)
     self.result_analysis(verbose_analysis)
   
@@ -304,7 +305,7 @@ class lstm_layer_driver:
     self.collect_data()
     self.produce_lstm_data_lib()
     self.gen_prog_frag()
-    if not os.getenv('USE_3LA_FPGA'):
+    if not os.getenv('USE_3LA_FPGA') in ('1', 'ON'):
       self.collect_ila_result()
       self.result_ila.tofile('./data/lstm_out.txt', sep='\n')
     else:

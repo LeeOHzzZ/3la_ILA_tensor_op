@@ -266,7 +266,7 @@ class linear_layer_driver:
     self.produce_ly_data_lib()
     self.produce_ly_asm()
     self.gen_prog_frag()
-    if not os.environ.get('USE_3LA_FPGA'):
+    if not os.getenv('USE_3LA_FPGA') in ('1', 'ON'):
       self.collect_ila_result()
       self.result_ila.tofile('./data/result.txt', sep='\n')
     else:
