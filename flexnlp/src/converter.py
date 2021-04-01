@@ -1,4 +1,5 @@
 import json
+import os
 
 from .utils import tool
 from ._ts_asm_converter import ts_asm_converter as ts_cvtr
@@ -54,7 +55,7 @@ class Converter:
       self.axi_cmd_list.append(axi_cmd)
     self.is_to_axi = True
   
-  def to_test_vec_for_fpga(self, base_addr):
+  def to_test_vec_for_fpga(self, base_addr, op_name):
     """
     convert ILA prog fragment to test_vector accepted 
     by FlexNLP FPGA implementation
@@ -89,7 +90,7 @@ class Converter:
       elif mode == 'R':
         self.test_vec_rd_list.append(
           'read_data.val128 = HW128_REG(' + addr + ');\n' + \
-          'printf("[read_out]: {\\"0x%llX\\" : \\"0x%016llx%016llx\\"}\\n",' + addr + \
+          'printf("[read_out_' + op_name + ']: {\\"0x%llX\\" : \\"0x%016llx%016llx\\"}\\n",' + addr + \
           ', read_data.val64[1], read_data.val64[0]);\n'
         )
   
@@ -111,13 +112,14 @@ class Converter:
     with open(out_path, 'w') as fout:
       json.dump({'program fragment' : self.prog_frag}, fout, indent=4)
   
-  def dump_axi_cmds(self, out_path, flexnlp_base_addr = '0x33000000'):
+  def dump_axi_cmds(self, out_path, flexnlp_base_addr = '0x33000000', op_name = ''):
     """
     dump axi_cmds to JSON file
     """
     if not self.is_to_axi:
       self.to_axi_cmds(flexnlp_base_addr)
-      self.to_test_vec_for_fpga(flexnlp_base_addr)
+      if os.environ.get('USE_3LA_FPGA') in ('1', 'ON'):
+        self.to_test_vec_for_fpga(flexnlp_base_addr, op_name= op_name)
     with open(out_path, 'w') as fout:
       fout.writelines(self.axi_cmd_list)
     

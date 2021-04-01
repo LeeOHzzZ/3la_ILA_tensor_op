@@ -296,12 +296,12 @@ class tool:
       'smiv128_t read_data;\n' )
 
 
-  def parse_fpga_results(self, file_in, file_out):
+  def parse_fpga_results(self, file_in, file_out, op_name):
     """
     this function will parse the results returned by FPGA simulation
     """
     result_dict = {}
-    ider = '[read_out]:'
+    ider = '[read_out_' + op_name + ']:'
     with open(file_in, 'r') as fin:
       raw_in = fin.readlines()
     for l in raw_in:
@@ -315,7 +315,7 @@ class tool:
   """
   for invoking FPGA simulation
   """
-  def collect_fpga_results(self, mem_idx, num_ts, num_vi, num_vo, bias, base_addr):
+  def collect_fpga_results(self, mem_idx, num_ts, num_vi, num_vo, bias, base_addr, op_name = ''):
     """
     call to FPGA simulation
     """
@@ -336,7 +336,7 @@ class tool:
     print('\n--------------------------------------------------------------')
     print('\tParsing and collect FlexNLP FPGA simulation results')
     print('--------------------------------------------------------------\n')
-    self.parse_fpga_results('./test/fpga_output.txt', './test/fpga_adpf_result.tmp')
+    self.parse_fpga_results('./test/fpga_output.txt', './test/fpga_adpf_result.tmp', op_name)
     self.axi_out_to_float_fpga('./test/fpga_adpf_result.tmp', './test/fpga_float_result.tmp',
                              mem_idx = mem_idx, num_ts = num_ts, 
                              num_vi = num_vi, num_vo = num_vo, bias=bias, base_addr=base_addr)

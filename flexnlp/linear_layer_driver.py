@@ -8,11 +8,12 @@ from src.converter import Converter as cvtr
 from src.utils import tool
 
 class linear_layer_driver:
-  def __init__(self, num_v_in, num_v_out, num_ts, is_bias):
+  def __init__(self, num_v_in, num_v_out, num_ts, is_bias, name):
     self.num_v_in = num_v_in
     self.num_v_out = num_v_out
     self.num_ts = num_ts
     self.is_bias = is_bias
+    self.op_name = name
     self.tl = tool()
 
   def produce_ly_asm(self):
@@ -244,7 +245,7 @@ class linear_layer_driver:
     print('--------------------------------------------------------------\n')
     if not self.ila_cvtr:
       self.ila_cvtr = cvtr('./test/ly_asm.json', './test/ly_data_lib.json')
-    self.ila_cvtr.dump_axi_cmds('./test/ly_axi_cmd.csv', base_addr)
+    self.ila_cvtr.dump_axi_cmds('./test/ly_axi_cmd.csv', base_addr, op_name=self.op_name)
     print('*** axi commands has been dumped to ./test/ly_axi_cmd.csv ***')
 
   def collect_fpga_results(self, base_addr = '0xA0500000'):
@@ -255,7 +256,7 @@ class linear_layer_driver:
     """
     self.result_fpga = self.tl.collect_fpga_results(mem_idx=1, num_ts=self.num_ts,
                        num_vi=self.num_v_in, num_vo=self.num_v_out, bias=self.bias_act,
-                       base_addr=base_addr)
+                       base_addr=base_addr, op_name=self.op_name)
     
 
   def run(self):
@@ -292,14 +293,17 @@ class linear_layer_driver:
 
 
 if __name__ == '__main__':
-  assert len(sys.argv) == 5, \
-    "Usage: python3 linear_layer_driver.py [num_vector_in] [num_vector_out] [num_timestep] [is_bias]"
+  assert len(sys.argv) >= 5, \
+    "Usage: python3 linear_layer_driver.py [num_vector_in] [num_vector_out] [num_timestep] [is_bias] [op_name]"
   num_v_in = int(sys.argv[1])
   num_v_out = int(sys.argv[2])
   num_ts = int(sys.argv[3])
   is_bias = int(sys.argv[4])
+  op_name = ''
+  if len(sys.argv) > 5:
+    op_name = sys.argv[5] 
 
-  driver = linear_layer_driver(num_v_in, num_v_out, num_ts, is_bias)
+  driver = linear_layer_driver(num_v_in, num_v_out, num_ts, is_bias, name=op_name)
   driver.run()
   # driver.run_test()
   driver.clean_up()
