@@ -8,7 +8,7 @@ from src.converter import Converter as cvtr
 from src.utils import tool
 
 class linear_layer_driver:
-  def __init__(self, num_v_in, num_v_out, num_ts, is_bias, name):
+  def __init__(self, num_v_in, num_v_out, num_ts, is_bias, name = 'linear_layer'):
     self.num_v_in = num_v_in
     self.num_v_out = num_v_out
     self.num_ts = num_ts
@@ -204,6 +204,7 @@ class linear_layer_driver:
     print('\tgenerate prog_frag.json for ILA simulator')
     print('--------------------------------------------------------------\n')
     self.ila_cvtr = cvtr('./test/ly_asm.json', './test/ly_data_lib.json')
+    self.ila_cvtr.dump_ila_asm('./test/ly_ila_asm.json')
     self.ila_cvtr.dump_ila_prog_frag('./test/ly_prog_frag_in.json')
     print('***ILA program fragment has been dumped to ./test/ly_prog_frag_in.json***\n')
   

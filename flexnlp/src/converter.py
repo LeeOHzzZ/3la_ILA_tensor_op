@@ -118,24 +118,24 @@ class Converter:
     """
     if not self.is_to_axi:
       self.to_axi_cmds(flexnlp_base_addr)
-      if os.environ.get('USE_3LA_FPGA') in ('1', 'ON'):
-        self.to_test_vec_for_fpga(flexnlp_base_addr, op_name= op_name)
     with open(out_path, 'w') as fout:
       fout.writelines(self.axi_cmd_list)
     
     # get the code script template
-    self.tl = tool()
-    temp = self.tl.get_axi_cmd_template()
+    if os.environ.get('USE_3LA_FPGA') in ('1', 'ON'):
+      self.to_test_vec_for_fpga(flexnlp_base_addr, op_name= op_name)
+      self.tl = tool()
+      temp = self.tl.get_axi_cmd_template()
 
-    with open('./test/fpga_axi_set_cmds.h', 'w') as fout:
-      fout.write("#ifndef SET_AXI_CMDS_H_\n#define SET_AXI_CMDS_H_\n\n")
-      fout.write(temp)
-      fout.write('\nint set_axi_wr_cmds() {\n')
-      fout.writelines(self.test_vec_wr_list)
-      fout.writelines('\n}\n')
-      fout.write('\nint set_axi_rd_cmds() {\n')
-      fout.writelines(self.test_vec_rd_list)
-      fout.write('\n}\n\n#endif\n')
+      with open('./test/fpga_axi_set_cmds.h', 'w') as fout:
+        fout.write("#ifndef SET_AXI_CMDS_H_\n#define SET_AXI_CMDS_H_\n\n")
+        fout.write(temp)
+        fout.write('\nint set_axi_wr_cmds() {\n')
+        fout.writelines(self.test_vec_wr_list)
+        fout.writelines('\n}\n')
+        fout.write('\nint set_axi_rd_cmds() {\n')
+        fout.writelines(self.test_vec_rd_list)
+        fout.write('\n}\n\n#endif\n')
 
   
 
