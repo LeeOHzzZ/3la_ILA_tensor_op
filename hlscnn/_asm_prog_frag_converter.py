@@ -59,12 +59,13 @@ class asm_prog_frag_converter:
 
   # ------------------------------------------------------------
   # ------------------------------------------------------------
-  def __produce_insn(self, addr, data, mode):
+  def __produce_insn(self, addr, data, mode, is_vir = 0):
     ret = [{
       'instr_No.' : self.__instr_cntr,
       'addr' : addr,
       'data' : data,
-      'mode' : mode
+      'mode' : mode,
+      'is_vir' : is_vir
     }]
     self.__instr_cntr += 1
     return ret
@@ -90,7 +91,7 @@ class asm_prog_frag_converter:
     # assembly: VirMemWr [addr], [data]
     # [addr]: hex string of virtual SoC memory address to write into
     # [data]: hex string of 128bit data
-    return self.__produce_insn(asm['addr'], asm['data'], 'W')
+    return self.__produce_insn(asm['addr'], asm['data'], 'W', is_vir=1)
 
   """
   configuration instruction

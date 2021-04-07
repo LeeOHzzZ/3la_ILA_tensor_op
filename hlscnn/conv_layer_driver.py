@@ -13,9 +13,10 @@ import timeit
 from converter import Converter as cvtr
 
 class conv_layer_driver:
-  __VIR_MEM_BASE_ADDR = 0x50000
+  __VIR_MEM_BASE_ADDR = 0x0
   __SPAD0_BASE_ADDR = 0x04000
-  __SPAD1_BASE_ADDR = 0X24000
+  # __SPAD1_BASE_ADDR = 0X24000
+  __SPAD1_BASE_ADDR = 0x800000
 
   def __init__(self, inp_size, out_size, kernel_size, stride,
                is_bias, bias, is_relu, is_accum):
