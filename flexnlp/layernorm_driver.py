@@ -160,8 +160,8 @@ class layernorm_driver:
     self.collect_ila_result()
     self.gen_axi_cmds('0xA0000000')
     self.produce_ref_result()
-    self.result_analysis(verbose_analysis)
-    self.clean_up()
+    err_out_list = self.result_analysis(verbose_analysis)
+    return err_out_list
 
 
   ##########################################
@@ -198,6 +198,7 @@ class layernorm_driver:
     print('\n--------------------------------------------------------------')
     print('\tanalyze ILA simulation result')
     print('--------------------------------------------------------------\n')
+    err_out_list = []
     for i in range(self.num_ts):
       if not os.environ.get('USE_3LA_FPGA'):
         result_ts = self.result_ila[self.num_v*16*i : self.num_v*16*(i+1)]
@@ -207,6 +208,8 @@ class layernorm_driver:
             relative error (vs. ref): {:5.5%}\n".format(i, err_out, err_ref))
       if is_verbose:
         print("reference output: \n{}\nresult: \n{}\n".format(ref, result_ts))
+      err_out_list.append(err_out)
+    return err_out_list
 
   def clean_up(self):
     for file in os.listdir('./test'):

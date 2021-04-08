@@ -221,6 +221,7 @@ class linear_layer_driver:
     print('\n--------------------------------------------------------------')
     print('\tanalyze ILA simulation result')
     print('--------------------------------------------------------------\n')
+    err_out_list = []
     for i in range(self.num_ts):
       if is_fpga:
         result_ts = self.result_fpga[self.num_v_out*16*i : self.num_v_out*16*(i+1)]
@@ -232,6 +233,8 @@ class linear_layer_driver:
             relative error (vs. ref): {:5.5%}\n".format(i, err_out, err_ref))
       if is_verbose:
         print("reference output: \n{}\nresult: \n{}\n".format(ref, result_ts))
+      err_out_list.append(err_out)
+    return err_out_list
 
   # --------------------------------------
   # invoke FPGA simulation
@@ -281,9 +284,10 @@ class linear_layer_driver:
     self.produce_linear_layer_test()
     self.gen_prog_frag()
     self.collect_ila_result()
-    self.result_analysis()
     self.gen_axi_cmds('0xA0000000')
     self.result_ila.tofile('./data/result_ila_sim.txt', sep='\n')
+    err_out_list = self.result_analysis()
+    return err_out_list
     # self.collect_fpga_results()
     # self.result_fpga.tofile('./data/result_fpga_sim.txt', sep = '\n')
 

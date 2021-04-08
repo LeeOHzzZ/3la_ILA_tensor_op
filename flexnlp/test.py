@@ -16,7 +16,7 @@ def test_lstm():
   is_bias = int(sys.argv[5])
   is_zero_first = int(sys.argv[6])
   test_driver = lstm_layer_driver(num_v_in, num_v_out, num_ts, is_bias, is_zero_first)
-  use_relay = 1
+  use_relay = 0
   verbose_analysis = 0
   test_driver.run_test(use_relay, verbose_analysis)
   test_driver.clean_up()
@@ -71,12 +71,15 @@ if __name__ == '__main__':
     test_layernorm()
   if test_name == 'all':
     print("run all the test with default parameters")
-    lstm_layer_driver(num_v_in = 4, num_v_out = 4, num_ts = 2, 
-                      is_bias = 1, is_zero_first = 1).run_test()
-    linear_layer_driver(num_v_in = 4, num_v_out = 4, num_ts = 4, is_bias = 1).run_test()
-    pooling_layer_driver('max', num_v_in=4, num_ts=4).run_test()
-    pooling_layer_driver('mean', num_v_in=4, num_ts=4).run_test()
-    layernorm_driver(num_v=4, num_ts=4)
+    err_out_list = []
+    for i in range(10):
+      err_out_list += lstm_layer_driver(num_v_in = 16, num_v_out = 16, num_ts = 1, 
+                      is_bias = 1, is_zero_first = 1).run_test(use_relay=0)
+    err_out_list += linear_layer_driver(num_v_in = 16, num_v_out = 16, num_ts = 10, is_bias = 1).run_test()
+    err_out_list += pooling_layer_driver('max', num_v_in=16, num_ts=10).run_test()
+    err_out_list += pooling_layer_driver('mean', num_v_in=16, num_ts=10).run_test()
+    err_out_list += layernorm_driver(num_v=16, num_ts=10).run_test()
+    print("average result mismatch with ref is {:04%}".format(sum(err_out_list)/len(err_out_list)))
     # clean up
     for file in os.listdir('./test'):
       if '.tmp' in file:
