@@ -8,6 +8,7 @@ class ts_asm_converter:
   __GB_CONTROL_START = 1
   __GB_LAYER_REDUCE_START = 2
   __GB_LAYER_NORM_START = 3
+  __GB_ATTENTION_START = 5
 
   __gb_large_buf_mem_base = [0, 0, 0, 0]
 
@@ -83,8 +84,8 @@ class ts_asm_converter:
     """
     asm_types = ['store_act', 'store_wgt', 'store_bias', 'load_act']
     asm_types += ['store_wgt_i', 'store_wgt_h', 'store_bias_i', 'store_bias_h']
-    asm_types += ['store_beta', 'store_gamma']
-    asm_types += ['maxp', 'meanp','linear_layer', 'lstm_layer', 'layernorm']
+    asm_types += ['store_beta', 'store_gamma', 'store_dec']
+    asm_types += ['maxp', 'meanp','linear_layer', 'lstm_layer', 'layernorm', 'attention']
     # this instruction added for simulation
     asm_types += ['wait_irq']
     assert asm['name'] in asm_types, "{} is a not supported ILA assembly".format(asm['name'])
@@ -111,6 +112,8 @@ class ts_asm_converter:
       return self.gen_store_beta(asm)
     if asm['name'] == 'store_gamma':
       return self.gen_store_gamma(asm)
+    if asm['name'] == 'store_dec':
+      return self.gen_store_dec(asm)
 
     if asm['name'] in ('maxp', 'meanp'):
       return self.gen_pooling(asm)
@@ -120,6 +123,8 @@ class ts_asm_converter:
       return self.gen_lstm_layer(asm)
     if asm['name'] == 'layernorm':
       return self.gen_layer_norm(asm)
+    if asm['name'] == 'attention':
+      return self.gen_attention_layer(asm)
 
     if asm['name'] == 'wait_irq':
       return [{'name' : 'wait_irq'}]
@@ -128,7 +133,7 @@ class ts_asm_converter:
   # Load/Store instructions
   # ------------------------------------------
   def gen_store_act(self, asm):
-    # format: store_act [timestep_idx], [idx]
+    # format: store_act [timestep_idx], [idx], [mem_idx] (optional)
     # timestep_idx: index of the tensor place holder
     # idx: timestep index in the flexnlp GB large buffer
     # description: 
@@ -136,11 +141,16 @@ class ts_asm_converter:
     num_vector_in = self.data_lib['gb_num_vector_in']
     tensor_idx = asm['timestep_idx']
     idx = asm['idx']
+    if 'mem_idx' in asm:
+      mem_idx = asm['mem_idx']
+    else:
+      mem_idx = 0
+
     ret = []
 
     for v in range(num_vector_in):
       v_name = tensor_idx + '.' + str(v)
-      addr = hex(self.get_gb_large_abs_addr(0, idx, num_vector_in, v))
+      addr = hex(self.get_gb_large_abs_addr(mem_idx, idx, num_vector_in, v))
       ret.append({
         'name' : 'write_v',
         'vector_name' : v_name,
@@ -299,7 +309,28 @@ class ts_asm_converter:
         'addr' : hex(addr)
       })
     return ret
-
+  
+  def gen_store_dec(self, asm):
+    # format: store_dec [idx], [mem_idx]
+    #   [idx]: the symbol of decoder vector tensor
+    #   [mem_idx]: the index of the small buffer where decoder vector is stored to
+    # description:
+    #   store decoder vector into FlexASR small buffer for Attention
+    # assumption:
+    #   set the small buffer address to 0 for decoder tensor
+    ret = []
+    num_v_in = self.data_lib['gb_num_vector_in']
+    base_addr = self.__FLEXNLP_GB_SMALL_BUF_BASE
+    for v in range(num_v_in):
+      v_name = f"{asm['idx']}.{v}"
+      addr = base_addr + 16*v
+      ret.append({
+        'name' : 'write_v',
+        'vector_name' : v_name,
+        'addr' : hex(addr)
+      })
+    return ret  
+  
   # ------------------------------------------
   # op assembly
   # ------------------------------------------
@@ -610,3 +641,39 @@ class ts_asm_converter:
 
     return ret
 
+  def gen_attention_layer(self, asm):
+    # format: attention [num_ts], [num_v], [mem_idx_enc], [mem_idx_dec], [adpbias_enc],
+    #                   [adpbias_dec], [adpbias_softmax], [adpbias_out]
+    ret = []
+    # assume the mem_idx_enc as 0 by default
+    ret.append({
+      'name' : 'cfg_mmngr_gb_large',
+      'base_0' : hex(0x0),
+      'num_v_0' : asm['num_v']
+    })
+    # fill in the base address for softmax index and dec index here:
+    # softmax is index 7
+    ret.append({
+      'name' : 'cfg_mmngr_gb_small',
+      'base_7' : hex(asm['num_v']),
+      f"base_{asm['mem_idx_dec']}" : hex(0x0)
+    })
+    # set up attention configuration
+    ret.append({
+      'name' : 'cfg_attention',
+      'mem_id_1' : asm['mem_idx_enc'],
+      'mem_id_2' : asm['mem_idx_dec'],
+      'num_v' : asm['num_v'],
+      'num_ts' : asm['num_ts'],
+      'adpbias_1' : asm['adpbias_enc'],
+      'adpbias_2' : asm['adpbias_dec'],
+      'adpbias_3' : asm['adpbias_softmax'],
+      'adpbias_4' : asm['adpbias_out']
+    })
+    # trigger the attention 
+    ret.append({
+      'name' : 'start',
+      'op' : self.__GB_ATTENTION_START
+    })
+    
+    return ret
