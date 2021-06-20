@@ -11,6 +11,7 @@ class ts_asm_converter:
   __GB_ATTENTION_START = 5
 
   __gb_large_buf_mem_base = [0, 0, 0, 0]
+  __gb_small_buf_mem_base = [0 for i in range(8)]
 
   def __init__(self, ts_asm_list, data_lib):
     self.ts_asm_list = ts_asm_list
@@ -202,9 +203,10 @@ class ts_asm_converter:
     return self.gen_store_bias_helper(bias_idx, base_bias, num_v_out_pe)
 
   def gen_load_act(self, asm):
-    # format: load_act [mem_idx], [ts_idx]
+    # format: load_act [mem_idx], [ts_idx], [mem_type]
     # [mem_idx]: int, memory_idx in the FlexNLP large buffer
     # [ts_idx]: int, timestep index to be loaded
+    # [mem_type]: str, 'large': load from large buffer, 'small' load from small buffer
     # description:
     #   load activations from flexnlp gb_large_buffer
     # assumption:
@@ -212,7 +214,15 @@ class ts_asm_converter:
     num_v_out = self.data_lib['gb_num_vector_out']
     ret = []
     for v in range(num_v_out):
-      addr = self.get_gb_large_abs_addr(asm['mem_idx'], asm['ts_idx'], num_v_out, v)
+      #TODO: default mem_type is large for now
+      if 'mem_type' in asm and asm['mem_type'] == 'small':
+        addr = ( 
+                 self.__FLEXNLP_GB_SMALL_BUF_BASE + 
+                 self.__gb_small_buf_mem_base[asm['mem_idx']] +
+                 v*16 
+                )
+      else:
+        addr = self.get_gb_large_abs_addr(asm['mem_idx'], asm['ts_idx'], num_v_out, v)
       ret.append({
         'name' : 'read_v',
         'addr' : hex(addr)
@@ -317,7 +327,7 @@ class ts_asm_converter:
     # description:
     #   store decoder vector into FlexASR small buffer for Attention
     # assumption:
-    #   set the small buffer address to 0 for decoder tensor
+    #   TODO: set the small buffer address to 0 for decoder tensor
     ret = []
     num_v_in = self.data_lib['gb_num_vector_in']
     base_addr = self.__FLEXNLP_GB_SMALL_BUF_BASE
@@ -378,6 +388,10 @@ class ts_asm_converter:
       'base_5': hex(0x0),
       'base_6': hex(self.data_lib['gb_num_vector_in'])
     })
+    # update the small buffer offset 
+    self.__gb_small_buf_mem_base[5] = 0,
+    self.__gb_small_buf_mem_base[6] = self.data_lib['gb_num_vector_in']
+
     # set up gb layer norm configuration
     ret.append({
       'name' : 'cfg_ly_norm',
