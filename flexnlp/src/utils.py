@@ -6,11 +6,13 @@ import sys
 import subprocess
 import numpy as np
 import timeit
+import os
 
 # sys.path.append('./tool')
 from .tool.adaptivfloat import quantize_floatext
 from .tool.relay_lstm import relay_lstm_ref
 from .tool.relay_layers import relay_layernorm
+from .tool.relay_layers import relay_attention
 
 FLEXNLP_VECTOR_SIZE = 16
 FLEXNLP_GBCORE_NUM_BANKS = 16
@@ -45,6 +47,14 @@ class tool:
     return relay layernorm reference data
     """
     return relay_layernorm(num_v, inp, beta, gamma)
+  
+  def get_relay_attention(self, key_seq_len, query_seq_len, vector_size, 
+                          enc_data, dec_data, wgt_data):
+    """
+    return relay attention reference data
+    """
+    return relay_attention(key_seq_len, query_seq_len, vector_size, 
+                            enc_data, dec_data, wgt_data)
   
   def wgt_tiling(self, wgt_in, num_v_in, num_v_out):
     """
@@ -172,7 +182,8 @@ class tool:
     subprocess.run(['adpfloat_to_float',
                     in_path, str(bias), out_path])
 
-  def axi_out_to_float(self, in_path, out_path, mem_idx, num_ts, num_vi, num_vo, bias):
+  def axi_out_to_float(self, in_path, out_path, mem_idx, num_ts, num_vi, num_vo, bias,
+                       mem_type):
     """
     convert the axi read return to floating point data
     """
@@ -181,11 +192,20 @@ class tool:
     data_list = []
     # mem_base = self.get_gb_base_addr_1(num_ts, num_vi)*16 # byte level address
     mem_base = 0 if mem_idx == 0 else self.get_gb_base_addr_1(num_ts, num_vi)*16
-
-    for ts_idx in range(num_ts):
+    
+    if mem_type == "large":
+      for ts_idx in range(num_ts):
+        for v_idx in range(num_vo):
+          addr = mem_base + self.get_gb_large_addr_offset(ts_idx, num_vo, v_idx)
+          addr_str = '0x{:08X}'.format(addr)
+          data_str = v_data[addr_str][2:]
+          assert len(data_str) == 32, "wrong length for ILA simulator return result"
+          for b_idx in range(16):
+            data_list.append('0x{}\n'.format(data_str[30-2*b_idx:32-2*b_idx]))
+    else:
       for v_idx in range(num_vo):
-        addr = mem_base + self.get_gb_large_addr_offset(ts_idx, num_vo, v_idx)
-        addr_str = '0x{:08X}'.format(addr)
+        addr = mem_base + 16*v_idx
+        addr_str = "0x{:08X}".format(addr)
         data_str = v_data[addr_str][2:]
         assert len(data_str) == 32, "wrong length for ILA simulator return result"
         for b_idx in range(16):
@@ -247,7 +267,10 @@ class tool:
   """
   for invoking ILA simulator 
   """
-  def collect_ila_result(self, in_path, mem_idx, num_ts, num_vi, num_vo, bias):
+  def collect_ila_result(self, in_path, mem_idx, num_ts, num_vi, num_vo, bias,
+                         mem_type = 'large'):
+    # mem_type: where result is located in the gb memory
+    assert mem_type == 'large' or mem_type == 'small'
     print('\n--------------------------------------------------------------')
     print('\tinvoking ILA simulator')
     print('--------------------------------------------------------------\n')
@@ -260,8 +283,11 @@ class tool:
     self.axi_out_to_float(in_path = './test/adpf_result.tmp', 
                           out_path = './test/float_result.tmp',
                           mem_idx = mem_idx, num_ts = num_ts, num_vi = num_vi,
-                          num_vo = num_vo, bias = bias)
-    return np.fromfile('./test/float_result.tmp', sep='\n')
+                          num_vo = num_vo, bias = bias,
+                          mem_type=mem_type)
+    return np.fromfile("./test/float_result.tmp", sep='\n')
+
+
   """
   for generating FPGA source code file
   """
@@ -341,3 +367,9 @@ class tool:
                              mem_idx = mem_idx, num_ts = num_ts, 
                              num_vi = num_vi, num_vo = num_vo, bias=bias, base_addr=base_addr)
     return np.fromfile('./test/fpga_float_result.tmp', sep = '\n')
+
+
+  def clean_up(self):
+    for file in os.listdir('./test'):
+      if '.tmp' in file:
+        subprocess.run(['rm', './test/'+file])

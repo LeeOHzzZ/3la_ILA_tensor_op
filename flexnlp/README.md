@@ -12,6 +12,7 @@ python3 test.py lstm [num_vector_in] [num_vector_out] [num_timestep] [is_bias] [
 #   [num_vector_out]: must be integer multiple of 4
 # example 2: python3 test.py lstm 4 4 1 1 1
 #   [is_zero_first]: If true, the initial cell state and hidden state would be zero
+# emample 3: python3 attention_driver.py --num_ts 5 --num_v 4 --mem_idx_enc 0 --mem_idx_dec 0 --adpbias_enc 1 --adpbias_dec 2 --adpbias_softmax 3 --adpbias_out 4
 ```
 ---
 

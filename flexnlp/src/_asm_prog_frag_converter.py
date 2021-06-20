@@ -258,10 +258,10 @@ class asm_prog_frag_converter:
     # [adpbias_3]: adpfloat bias for softmax intermediate output 
     # [adpbias_4]: adpfloat bias for final attention output
     addr = hex(self.__FLEXNLP_BASE_ADDR + 0x00B00010)
-    adpbias_field = hex(asm['adpbias_4'])[2:].zfill(1) + hex(asm['adpbias_3'])[2:].zfill(1)
-    adpbias_field += hex(asm['adpbias_2'])[2:].zfill(1) + hex(asm['adpbias_1'])[2:].zfill(1)
+    adpbias_field = hex(asm['adpbias_4'])[2:].zfill(2) + hex(asm['adpbias_3'])[2:].zfill(2)
+    adpbias_field += hex(asm['adpbias_2'])[2:].zfill(2) + hex(asm['adpbias_1'])[2:].zfill(2)
     num_ts_field = hex(asm['num_ts'])[2:].zfill(8)
-    num_v_field = hex(asm['num_v']).zfill(4)
+    num_v_field = hex(asm['num_v'])[2:].zfill(4)
     mem_idx_field = hex(asm['mem_id_2'])[2:].zfill(2) + hex(asm['mem_id_1'])[2:].zfill(2)
     valid_field = '00000001'
     instr = '0x' + adpbias_field + num_ts_field + num_v_field + mem_idx_field + valid_field
