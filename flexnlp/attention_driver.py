@@ -268,6 +268,5 @@ if __name__ == "__main__":
   parser.add_argument("--op_name", type=str, default="attention")
   kwargs = vars(parser.parse_args())
   driver = attention_layer(**kwargs)
-  # driver.run()
   driver.run_test()  
 
