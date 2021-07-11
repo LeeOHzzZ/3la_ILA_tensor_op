@@ -103,10 +103,15 @@ class asm_prog_frag_converter:
     assert asm['pe_idx'] in range(4), 'not supported pe_idx for gen_pe_cfg_rnn_layer_sizing'
     assert len(asm) == 7, 'incorrect arguments for pe_cfg_rnn_layer_sizing'
     addr = hex(self.__FLEXNLP_BASE_ADDR + (asm['pe_idx']+1)*0x01000000 + 0x00400010)
-    instr = "0x0" + \
-            hex(asm['num_v_out'])[2:].zfill(2) + hex(asm['num_mngr'])[2:].zfill(2) + \
-            hex(asm['is_bias'])[2:].zfill(2) + hex(asm['is_cluster'])[2:].zfill(2) + \
-            hex(asm['is_zero'])[2:].zfill(2) + '01'
+    instr = (
+      "0x0" 
+      + f"{asm['num_v_out']:0>2x}" 
+      + f"{asm['num_mngr']:0>2x}" 
+      + f"{asm['is_bias']:0>2x}"
+      + f"{asm['is_cluster']:0>2x}"
+      + f"{asm['is_zero']:0>2x}"
+      + "01"
+    )
     return self.__produce_insn(addr, instr, 'W')
 
   def __gen_pe_cfg_mngr(self, asm):
@@ -115,21 +120,33 @@ class asm_prog_frag_converter:
     assert asm['mngr_idx'] in range(1,3), 'not supported mngr_idx for pe_cfg_mngr'
     assert len(asm) == 11, "incorrect arguments for pe_cfg_mngr"
     addr = hex(self.__FLEXNLP_BASE_ADDR + (asm['pe_idx']+1)*0x01000000 + 0x00400000 + asm['mngr_idx']*0x20)
-    instr = '0x0' + hex(asm['base_inp'])[2:].zfill(4) + \
-            hex(asm['base_bias'])[2:].zfill(4) + hex(asm['base_wgt'])[2:].zfill(4) + \
-            hex(asm['num_v_in'])[2:].zfill(4) + \
-            hex(asm['adpbias_inp'])[2:].zfill(2) + hex(asm['adpbias_bias'])[2:].zfill(2) + \
-            hex(asm['adpbias_wgt'])[2:].zfill(2) + hex(asm['is_zero'])[2:].zfill(2)
+    instr = (
+      "0x0"
+      + f"{asm['base_inp']:0>4x}"
+      + f"{asm['base_bias']:0>4x}"
+      + f"{asm['base_wgt']:0>4x}"
+      + f"{asm['num_v_in']:0>4x}"
+      + f"{asm['adpbias_inp']:0>2x}"
+      + f"{asm['adpbias_bias']:0>2x}"
+      + f"{asm['adpbias_wgt']:0>2x}"
+      + f"{asm['is_zero']:0>2x}"
+    )
     return self.__produce_insn(addr, instr, 'W')
 
   def __gen_pe_cfg_act_mngr(self, asm):
     # assembly: pe_cfg_act_mngr [pe_idx], [is_zero], [adpfloat_bias], [num_insn], [num_v_out], [buf_base], [out_base]
     assert asm['pe_idx'] in range(4), 'not supported pe_idx for gen_pe_cfg_act_mngr'
     addr = hex(self.__FLEXNLP_BASE_ADDR + (asm['pe_idx']+1)*0x01000000 + 0x00800010)
-    instr = '0x0' + \
-            hex(asm['out_base'])[2:].zfill(2) + hex(asm['buf_base'])[2:].zfill(4) + \
-            hex(asm['num_v_out'])[2:].zfill(4) + hex(asm['num_insn'])[2:].zfill(2) + \
-            hex(asm['adpfloat_bias'])[2:].zfill(2) + hex(asm['is_zero'])[2:].zfill(2) + '01'
+    instr = (
+      "0x0"
+      + f"{asm['out_base']:0>2x}"
+      + f"{asm['buf_base']:0>4x}"
+      + f"{asm['num_v_out']:0>4x}"
+      + f"{asm['num_insn']:0>2x}"
+      + f"{asm['adpfloat_bias']:0>2x}"
+      + f"{asm['is_zero']:0>2x}"
+      + "01"
+    )
     return self.__produce_insn(addr, instr, 'W')
 
   def __gen_pe_cfg_act_v(self, asm):
@@ -162,7 +179,7 @@ class asm_prog_frag_converter:
       key_v = 'num_v_'+str(i)
       key_b = 'base_'+str(i)
       if key_v in asm:
-        data = hex(asm[key_v])[2:].zfill(2) + data
+        data = f"{asm[key_v]:0>2x}" + data
       else:
         data = 2*'0' + data
       data = 2*'0' + data
@@ -195,9 +212,9 @@ class asm_prog_frag_converter:
     #   3. num_v : int
     #   4. num_ts : int
     addr = hex(self.__FLEXNLP_BASE_ADDR + 0x00800010)
-    num_v_field = hex(asm['num_v'])[2:].zfill(4)
-    mem_idx_field = hex(asm['mem_idx'])[2:].zfill(4)
-    mode_field = hex(asm['mode'])[2:].zfill(2)
+    num_v_field = f"{asm['num_v']:0>4x}"
+    mem_idx_field = f"{asm['mem_idx']:0>4x}"
+    mode_field = f"{asm['mode']:0>2x}"
     valid_field = '01'
     instr = hex(asm['num_ts']) + num_v_field + mem_idx_field + 4*'0' + mode_field + valid_field
 
@@ -206,12 +223,12 @@ class asm_prog_frag_converter:
   def __gen_cfg_ly_norm(self, asm):
     # assembly: cfg_ly_norm [mem_idx], [num_v], [num_ts], [adpbias_inp], [adpbias_beta], [adpbias_gamma]
     addr = hex(self.__FLEXNLP_BASE_ADDR + 0x00900010)
-    num_v_field = hex(asm['num_v'])[2:].zfill(4)
-    mem_idx_field = hex(asm['mem_idx'])[2:].zfill(4)
-    num_ts_field = hex(asm['num_ts'])[2:].zfill(8)
-    adpbias_g_field = hex(asm['adpbias_gamma'])[2:].zfill(2)
-    adpbias_b_field = hex(asm['adpbias_beta'])[2:].zfill(2)
-    adpbias_i_field = hex(asm['adpbias_inp'])[2:].zfill(2)
+    num_v_field = f"{asm['num_v']:0>4x}"
+    mem_idx_field = f"{asm['mem_idx']:0>4x}"
+    num_ts_field = f"{asm['num_ts']:0>8x}"
+    adpbias_g_field = f"{asm['adpbias_gamma']:0>2x}"
+    adpbias_b_field = f"{asm['adpbias_beta']:0>2x}"
+    adpbias_i_field = f"{asm['adpbias_inp']:0>2x}"
     valid_field = '01'
     instr = '0x0' + adpbias_g_field + adpbias_b_field + 2*'0' + adpbias_i_field + \
              num_ts_field + num_v_field + mem_idx_field + 6*'0' + valid_field 
@@ -221,11 +238,11 @@ class asm_prog_frag_converter:
     # assembly: cfg_gb_ctrl [mode], [is_rnn], [mem_id_i], [mem_id_o], [num_v_i], [num_v_o], [num_ts]
     # assumptions: all input types are integer
     addr = hex(self.__FLEXNLP_BASE_ADDR + 0x00700010)
-    num_timestep = hex(asm['num_ts'])[2:].zfill(4)
-    num_v_field = hex(asm['num_v_o'])[2:].zfill(2) + hex(asm['num_v_i'])[2:].zfill(2)
-    mem_id_field = hex(asm['mem_id_o'])[2:].zfill(2) + hex(asm['mem_id_i'])[2:].zfill(2)
-    rnn_flag_field = hex(asm['is_rnn'])[2:].zfill(4)
-    mode_field = hex(asm['mode'])[2:].zfill(2)
+    num_timestep = f"{asm['num_ts']:0>4x}"
+    num_v_field = f"{asm['num_v_o']:0>2x}" + f"{asm['num_v_i']:0>2x}"
+    mem_id_field = f"{asm['mem_id_o']:0>2x}" + f"{asm['mem_id_i']:0>2x}"
+    rnn_flag_field = f"{asm['is_rnn']:0>4x}"
+    mode_field = f"{asm['mode']:0>2x}"
     valid_field = '01'
     instr = '0x0' + num_timestep + num_v_field + mem_id_field + rnn_flag_field + mode_field + valid_field
 
@@ -239,9 +256,9 @@ class asm_prog_frag_converter:
     # [num_ts_2]: the end index of the timestep to perform zeropadding
     # zeropadding are done from num_ts_1 to num_ts_2 - 1
     addr = hex(self.__FLEXNLP_BASE_ADDR + 0x00A00010)
-    num_timestep_field = hex(asm['num_ts_2'])[2:].zfill(4) + hex(asm['num_ts_1'])[2:].zfill(4)
-    num_vector_field = hex(asm['num_v'])[2:].zfill(4)
-    mem_idx_field = hex(asm['mem_id'])[2:].zfill(4)
+    num_timestep_field = f"{asm['num_ts_2']:0>4x}" + f"{asm['num_ts_1']:0>4x}"
+    num_vector_field = f"{asm['num_v']:0>4x}"
+    mem_idx_field = f"{asm['mem_id']:0>4x}"
     valid_field = '00000001'
     instr = '0x0' + num_timestep_field + num_vector_field + mem_idx_field + valid_field
 
@@ -258,11 +275,11 @@ class asm_prog_frag_converter:
     # [adpbias_3]: adpfloat bias for softmax intermediate output 
     # [adpbias_4]: adpfloat bias for final attention output
     addr = hex(self.__FLEXNLP_BASE_ADDR + 0x00B00010)
-    adpbias_field = hex(asm['adpbias_4'])[2:].zfill(2) + hex(asm['adpbias_3'])[2:].zfill(2)
-    adpbias_field += hex(asm['adpbias_2'])[2:].zfill(2) + hex(asm['adpbias_1'])[2:].zfill(2)
-    num_ts_field = hex(asm['num_ts'])[2:].zfill(8)
-    num_v_field = hex(asm['num_v'])[2:].zfill(4)
-    mem_idx_field = hex(asm['mem_id_2'])[2:].zfill(2) + hex(asm['mem_id_1'])[2:].zfill(2)
+    adpbias_field = f"{asm['adpbias_4']:0>2x}" + f"{asm['adpbias_3']:0>2x}"
+    adpbias_field += f"{asm['adpbias_2']:0>2x}" + f"{asm['adpbias_1']:0>2x}"
+    num_ts_field = f"{asm['num_ts']:0>8x}"
+    num_v_field = f"{asm['num_v']:0>4x}"
+    mem_idx_field = f"{asm['mem_id_2']:0>2x}" + f"{asm['mem_id_1']:0>2x}"
     valid_field = '00000001'
     instr = '0x' + adpbias_field + num_ts_field + num_v_field + mem_idx_field + valid_field
     
