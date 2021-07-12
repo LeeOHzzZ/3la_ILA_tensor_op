@@ -6,6 +6,7 @@ from linear_layer_driver import linear_layer_driver
 from lstm_driver import lstm_layer_driver
 from pooling_driver import pooling_layer_driver
 from layernorm_driver import layernorm_driver
+from attention_driver import attention_layer
 
 def test_lstm():
   assert len(sys.argv) == 7, \
@@ -55,9 +56,17 @@ def test_layernorm():
   test_driver.run_test(verbose_analysis)
   test_driver.clean_up()
 
+def test_attention_layer():
+  assert len(sys.argv) == 4, \
+    "Usage: python3 test.py attention [num_ts] [num_v]"
+  num_ts = int(sys.argv[2])
+  num_v = int(sys.argv[3])
+  test_driver = attention_layer(num_ts=num_ts, num_v=num_v, mem_idx_enc=0, mem_idx_dec=0)
+  test_driver.run_test()
+
 if __name__ == '__main__':
   test_name = sys.argv[1]
-  supported_test = ('lstm', 'linear_layer', 'pooling', 'layernorm', 'all')
+  supported_test = ('lstm', 'linear_layer', 'pooling', 'layernorm', 'attention', 'all')
   assert test_name in supported_test, \
     '{} is not supported, supported test is {}'.format(test_name, supported_test)
   
@@ -69,6 +78,8 @@ if __name__ == '__main__':
     test_pooling()
   if test_name == 'layernorm':
     test_layernorm()
+  if test_name == 'attention':
+    test_attention_layer()
   if test_name == 'all':
     print("run all the test with default parameters")
     err_out_list = []
@@ -79,6 +90,7 @@ if __name__ == '__main__':
     err_out_list += pooling_layer_driver('max', num_v_in=16, num_ts=10).run_test()
     err_out_list += pooling_layer_driver('mean', num_v_in=16, num_ts=10).run_test()
     err_out_list += layernorm_driver(num_v=16, num_ts=10).run_test()
+    err_out_list += attention_layer(num_v=16, num_ts=10, mem_idx_enc=0, mem_idx_dec=0)
     print("average result mismatch with ref is {:04%}".format(sum(err_out_list)/len(err_out_list)))
     # clean up
     for file in os.listdir('./test'):

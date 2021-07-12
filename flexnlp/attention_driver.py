@@ -200,9 +200,9 @@ class attention_layer:
     self._produce_data_lib()
     self._gen_prog_frag()
     self._collect_ila_result()
-    self._result_analysis(is_verbose=True)
+    err_out_list = self._result_analysis(is_verbose=True)
     self.tl.clean_up()
-
+    return err_out_list
 
   # -----------------------------------------
   # Function for testing 
@@ -258,6 +258,8 @@ class attention_layer:
             relative error (vs. ref): {:5.5%}\n".format(err_out, err_ref))
     if is_verbose:
       print("reference output: \n{}\nresult: \n{}\n".format(self.ref_out, self.result_ila))
+    err_out_list.append(err_out)
+    return err_out_list
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='FlexASR Attention Layer Driver')
@@ -268,5 +270,4 @@ if __name__ == "__main__":
   parser.add_argument("--op_name", type=str, default="attention")
   kwargs = vars(parser.parse_args())
   driver = attention_layer(**kwargs)
-  driver.run_test()  
-
+  driver.run()
