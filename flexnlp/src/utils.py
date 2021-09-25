@@ -167,13 +167,27 @@ class tool:
     cmd_1 = ['rm', '-f', in_path]
     subprocess.run(cmd_0)
     subprocess.run(cmd_1)
+
+  def call_pack_int8_to_vector(self, in_path, out_path):
+    """
+    call pre-built binary to pack int8 data into vector string 
+    for FlexASR
+    """
+    cmd_0 = ['pack_int8_to_vector', in_path, out_path]
+    cmd_1 = ['rm', '-f', in_path]
+    subprocess.run(cmd_0)
+    subprocess.run(cmd_1)
   
-  def call_ila_simulator(self, in_path, out_path):
+  def call_ila_simulator(self, dtype, in_path, out_path):
     """
     call pre-built flexnlp-ila simulator to execute the ila program fragment
     """
-    subprocess.run(['flex_asm_sim_driver',
-                    in_path, out_path])
+    if dtype == "float32":
+      print("\n[FLEXASR_ILA] calling adptfloat-version ila simulator\n")
+      subprocess.run(['flex_asm_sim_driver', in_path, out_path])
+    elif dtype == "int8":
+      print("\n[FLEXASR_ILA] calling int8-version ila simulator\n")
+      subprocess.run(['flex_asm_sim_driver_int8', in_path, out_path])
 
   def call_adpt_float_cvtr(self, in_path, bias, out_path):
     """
@@ -182,8 +196,14 @@ class tool:
     subprocess.run(['adpfloat_to_float',
                     in_path, str(bias), out_path])
 
-  def axi_out_to_float(self, in_path, out_path, mem_idx, num_ts, num_vi, num_vo, bias,
-                       mem_type):
+  def call_collect_int8_result(self, in_path, out_path):
+    """
+    call pre-built binary to collect int8 results
+    """
+    subprocess.run(["collect_int8_result", in_path, out_path])
+
+  def collect_axi_out(self, in_path, out_path, mem_idx, num_ts, num_vi, num_vo, bias,
+                       dtype, mem_type):
     """
     convert the axi read return to floating point data
     """
@@ -214,7 +234,10 @@ class tool:
     with open('./test/ila_result.tmp', 'w') as fout:
       fout.writelines(data_list)
 
-    self.call_adpt_float_cvtr('./test/ila_result.tmp', bias, out_path)        
+    if dtype == "float32":
+      self.call_adpt_float_cvtr('./test/ila_result.tmp', bias, out_path)
+    elif dtype == "int8":
+      self.call_collect_int8_result("./test/ila_result.tmp", out_path)
   
   def axi_out_to_float_fpga(self, in_path, out_path, mem_idx, num_ts, num_vi, num_vo, bias,
                             base_addr='0xa0500000'):
@@ -268,7 +291,7 @@ class tool:
   for invoking ILA simulator 
   """
   def collect_ila_result(self, in_path, mem_idx, num_ts, num_vi, num_vo, bias,
-                         mem_type = 'large'):
+                         dtype, mem_type = 'large'):
     # mem_type: where result is located in the gb memory
     assert mem_type == 'large' or mem_type == 'small'
     print('\n--------------------------------------------------------------')
@@ -276,16 +299,20 @@ class tool:
     print('--------------------------------------------------------------\n')
     # measure the time of ila simulation
     start_time = timeit.default_timer()
-    self.call_ila_simulator(in_path, './test/adpf_result.tmp')
+    self.call_ila_simulator(dtype, in_path, './test/adpf_result.tmp')
     end_time = timeit.default_timer()
     print('\n********* ILA simulator performance ***********')
     print('ILA simulator execution time is {:04f}s'.format(end_time - start_time))
-    self.axi_out_to_float(in_path = './test/adpf_result.tmp', 
-                          out_path = './test/float_result.tmp',
-                          mem_idx = mem_idx, num_ts = num_ts, num_vi = num_vi,
-                          num_vo = num_vo, bias = bias,
+    self.collect_axi_out(in_path = './test/adpf_result.tmp', 
+                          out_path = './test/result.tmp',
+                          mem_idx = mem_idx, 
+                          num_ts = num_ts, 
+                          num_vi = num_vi,
+                          num_vo = num_vo, 
+                          bias = bias,
+                          dtype = dtype,
                           mem_type=mem_type)
-    return np.fromfile("./test/float_result.tmp", sep='\n')
+    return np.fromfile("./test/result.tmp", sep='\n').astype(dtype)
 
 
   """
