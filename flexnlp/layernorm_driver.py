@@ -209,6 +209,9 @@ class layernorm_driver:
       if is_verbose:
         print("reference output: \n{}\nresult: \n{}\n".format(ref, result_ts))
       err_out_list.append(err_out)
+
+    mean, stdd = self.tl.cal_mean_stdd(err_out_list)
+    print(f"Summary of Mismatch: Mean: {mean:.5%}\t Standard Deviation: {stdd:.5%}.")
     return err_out_list
 
   def clean_up(self):

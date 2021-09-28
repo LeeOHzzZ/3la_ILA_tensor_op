@@ -8,6 +8,8 @@ import numpy as np
 import timeit
 import os
 
+from math import sqrt
+
 # sys.path.append('./tool')
 from .tool.adaptivfloat import quantize_floatext
 from .tool.relay_lstm import relay_lstm_ref
@@ -22,11 +24,18 @@ class tool:
     pass
   
   def cal_error(self, result, ref):
-    diff = result - ref
-    abs_diff = np.abs(diff)
-    mean_diff = np.sum(abs_diff) / (diff.size)
-    # print(result.size, ref.size)
+    mean_diff = np.mean(np.abs(result - ref))
     return mean_diff/np.mean(np.abs(result)), mean_diff/np.mean(np.abs(ref))
+  
+
+  def cal_mean_stdd(self, data_list):
+    """
+    This function calculate the mean and standard deviation of the input data list
+    """
+    mean = sum(data_list) / len(data_list)
+    stdd = sqrt(sum(list(map(lambda x: (x - mean)**2, data_list)))/len(data_list))
+    return mean, stdd
+
 
   def get_adpfloat_bias(self, array):
     """
@@ -291,7 +300,7 @@ class tool:
   for invoking ILA simulator 
   """
   def collect_ila_result(self, in_path, mem_idx, num_ts, num_vi, num_vo, bias,
-                         dtype, mem_type = 'large'):
+                         dtype = "float32", mem_type = 'large'):
     # mem_type: where result is located in the gb memory
     assert mem_type == 'large' or mem_type == 'small'
     print('\n--------------------------------------------------------------')

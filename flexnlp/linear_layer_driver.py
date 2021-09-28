@@ -281,6 +281,9 @@ class linear_layer_driver:
       if is_verbose:
         print("reference output: \n{}\nresult: \n{}\n".format(ref, result_ts))
       err_out_list.append(err_out)
+    
+    mean, stdd = self.tl.cal_mean_stdd(err_out_list)
+    print(f"Summary of Mismatch: Mean: {mean:.5%}\t Standard Deviation: {stdd:.5%}.")
     return err_out_list
 
   # --------------------------------------
@@ -354,7 +357,6 @@ class linear_layer_driver:
 
 
 if __name__ == '__main__':
-
   parser = argparse.ArgumentParser(description="FlexASR Linear Layer Driver")
   parser.add_argument("--num_v_in", type=int, required=True, 
                       help="number of vector in the input timesteps")

@@ -7,30 +7,40 @@ from lstm_driver import lstm_layer_driver
 from pooling_driver import pooling_layer_driver
 from layernorm_driver import layernorm_driver
 from attention_driver import attention_layer
+from src.utils import tool
 
 def test_lstm():
-  assert len(sys.argv) == 7, \
+  assert len(sys.argv) >= 7, \
     "Usage: python3 test.py lstm [num_vector_in] [num_vector_out] [num_timestep] [is_bias] [is_zero_first]"
   num_v_in = int(sys.argv[2])
   num_v_out = int(sys.argv[3])
   num_ts = int(sys.argv[4])
   is_bias = int(sys.argv[5])
   is_zero_first = int(sys.argv[6])
+  if sys.argv[7]:
+    iter_num = int(sys.argv[7])
+  else:
+    iter_num = 1
   test_driver = lstm_layer_driver(num_v_in, num_v_out, num_ts, is_bias, is_zero_first)
   use_relay = 0
   verbose_analysis = 0
-  test_driver.run_test(use_relay, verbose_analysis)
+  err_out_list = []
+  for i in range(iter_num):
+    err_out_list += test_driver.run_test(use_relay, verbose_analysis)
+  mean, stdd = tool().cal_mean_stdd(err_out_list)
+  print(f"Summary of Mismatch: Mean: {mean:.5%}\t Standard Deviation: {stdd:.5%}.")
   test_driver.clean_up()
 
 def test_linear_layer():
-  assert len(sys.argv) == 6, \
-    "Usage: python3 test.py linear_layer [num_vector_in] [num_vector_out] [num_timestep] [is_bias]"
+  assert len(sys.argv) == 7, \
+    "Usage: python3 test.py linear_layer [num_vector_in] [num_vector_out] [num_timestep] [is_bias] [dtype]"
   num_v_in = int(sys.argv[2])
   num_v_out = int(sys.argv[3])
   num_ts = int(sys.argv[4])
   is_bias = int(sys.argv[5])
+  dtype = str(sys.argv[6])
 
-  test_driver = linear_layer_driver(num_v_in, num_v_out, num_ts, is_bias)
+  test_driver = linear_layer_driver(num_v_in, num_v_out, num_ts, is_bias, dtype, "linear_layer_test")
   test_driver.run_test()
   test_driver.clean_up()
 
@@ -57,12 +67,20 @@ def test_layernorm():
   test_driver.clean_up()
 
 def test_attention_layer():
-  assert len(sys.argv) == 4, \
+  assert len(sys.argv) >= 4, \
     "Usage: python3 test.py attention [num_ts] [num_v]"
   num_ts = int(sys.argv[2])
   num_v = int(sys.argv[3])
+  if sys.argv[4]:
+    loop_num = int(sys.argv[4])
+  else:
+    loop_num = 1
   test_driver = attention_layer(num_ts=num_ts, num_v=num_v, mem_idx_enc=0, mem_idx_dec=0)
-  test_driver.run_test()
+  err_out_list = []
+  for i in range(loop_num):
+    err_out_list += test_driver.run_test()
+  mean, stdd = tool().cal_mean_stdd(err_out_list)
+  print(f"Summary of Mismatch: Mean: {mean:.5%}\t Standard Deviation: {stdd:.5%}.")
 
 if __name__ == '__main__':
   test_name = sys.argv[1]

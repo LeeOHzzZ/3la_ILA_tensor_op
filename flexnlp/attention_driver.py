@@ -200,7 +200,7 @@ class attention_layer:
     self._produce_data_lib()
     self._gen_prog_frag()
     self._collect_ila_result()
-    err_out_list = self._result_analysis(is_verbose=True)
+    err_out_list = self._result_analysis(is_verbose=False)
     self.tl.clean_up()
     return err_out_list
 
