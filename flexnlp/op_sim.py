@@ -11,7 +11,7 @@ from layernorm_driver import layernorm_driver
 from attention_driver import attention_layer
 from src.utils import tool
 
-iteration = 200
+iteration = 100
 def test_linear_layer():
     subprocess.run(["mkdir", "-p", "op_sim/linear_layer"])
     v_size_list = [32, 16, 8, 4]

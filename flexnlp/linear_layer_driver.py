@@ -9,7 +9,7 @@ from src.converter import Converter as cvtr
 from src.utils import tool
 
 class linear_layer_driver:
-  def __init__(self, num_v_in, num_v_out, num_timestep, is_bias, dtype, op_name):
+  def __init__(self, num_v_in, num_v_out, num_timestep, is_bias, dtype, op_name=""):
     self.num_v_in = num_v_in
     self.num_v_out = num_v_out
     self.num_ts = num_timestep
@@ -268,7 +268,8 @@ class linear_layer_driver:
     print('\n--------------------------------------------------------------')
     print('\tanalyze ILA simulation result')
     print('--------------------------------------------------------------\n')
-    err_out_list = []
+    err_ref_list = []
+    ts_stdd_list = []
     for i in range(self.num_ts):
       if is_fpga:
         result_ts = self.result_fpga[self.num_v_out*16*i : self.num_v_out*16*(i+1)]
@@ -280,11 +281,17 @@ class linear_layer_driver:
             relative error (vs. ref): {:5.5%}\n".format(i, err_out, err_ref))
       if is_verbose:
         print("reference output: \n{}\nresult: \n{}\n".format(ref, result_ts))
-      err_out_list.append(err_out)
+      # err_ref_list.append(err_ref)
+      avg_mm, stdd = self.tl.cal_error_single_tensor(result_ts, ref)
+      err_ref_list.append(avg_mm)
+      ts_stdd_list.append(stdd)
+      # if self.num_ts == 1:
+      #   avg_mm, stdd = self.tl.cal_error_single_tensor(result_ts, ref)
+      #   print(f"Summary of a single tensor: Mean: {avg_mm:.5%}\t Standard deviation: {stdd:.5%}")
     
-    mean, stdd = self.tl.cal_mean_stdd(err_out_list)
-    print(f"Summary of Mismatch: Mean: {mean:.5%}\t Standard Deviation: {stdd:.5%}.")
-    return err_out_list
+    # mean, stdd = self.tl.cal_mean_stdd(err_ref_list)
+    # print(f"Summary of Mismatch: Mean: {mean:.5%}\t Standard Deviation: {stdd:.5%}.")
+    return err_ref_list, ts_stdd_list
 
   # --------------------------------------
   # invoke FPGA simulation
@@ -345,8 +352,9 @@ class linear_layer_driver:
     self.collect_ila_result()
     self.gen_axi_cmds('0xA0000000')
     self.result_ila.tofile('./data/result_ila_sim.txt', sep='\n')
-    err_out_list = self.result_analysis()
-    return err_out_list
+    return self.result_analysis()
+    # err_ref_list = self.result_analysis()
+    # return err_ref_list
     # self.collect_fpga_results()
     # self.result_fpga.tofile('./data/result_fpga_sim.txt', sep = '\n')
 

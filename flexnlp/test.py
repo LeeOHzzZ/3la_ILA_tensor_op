@@ -32,13 +32,17 @@ def test_lstm():
   test_driver.clean_up()
 
 def test_linear_layer():
-  assert len(sys.argv) == 7, \
+  assert len(sys.argv) >= 6, \
     "Usage: python3 test.py linear_layer [num_vector_in] [num_vector_out] [num_timestep] [is_bias] [dtype]"
   num_v_in = int(sys.argv[2])
   num_v_out = int(sys.argv[3])
   num_ts = int(sys.argv[4])
   is_bias = int(sys.argv[5])
-  dtype = str(sys.argv[6])
+  if len(sys.argv) > 6:
+    dtype = str(sys.argv[6])
+  else:
+    print("Using default dtype: float32")
+    dtype = "float32"
 
   test_driver = linear_layer_driver(num_v_in, num_v_out, num_ts, is_bias, dtype, "linear_layer_test")
   test_driver.run_test()

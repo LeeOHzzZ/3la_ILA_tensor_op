@@ -24,16 +24,32 @@ class tool:
     pass
   
   def cal_error(self, result, ref):
-    mean_diff = np.mean(np.abs(result - ref))
+    diff = np.abs(result - ref)
+    mean_diff = np.mean(diff)
+    # return np.mean(diff/np.abs(result)), np.mean(diff/np.abs(ref))
     return mean_diff/np.mean(np.abs(result)), mean_diff/np.mean(np.abs(ref))
   
+
+  def cal_error_single_tensor(self, result, ref):
+    """
+    This function calculate the mean error and standard deviation among the elements
+    a single result tensor compared with the reference tensor
+    """
+    diff = np.abs(result - ref)
+    avg_mismatch = np.mean(diff) / np.mean(np.abs(ref))
+    stdd = np.std(diff) / np.mean(np.abs(ref))
+    return avg_mismatch, stdd
+
 
   def cal_mean_stdd(self, data_list):
     """
     This function calculate the mean and standard deviation of the input data list
     """
-    mean = sum(data_list) / len(data_list)
-    stdd = sqrt(sum(list(map(lambda x: (x - mean)**2, data_list)))/len(data_list))
+    # mean = sum(data_list) / len(data_list)
+    # stdd = sqrt(sum(list(map(lambda x: (x - mean)**2, data_list)))/len(data_list))
+    data_list_tensor = np.array(data_list)
+    mean = np.mean(data_list_tensor)
+    stdd = np.std(data_list_tensor)
     return mean, stdd
 
 

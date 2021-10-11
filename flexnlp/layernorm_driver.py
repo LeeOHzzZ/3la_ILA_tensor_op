@@ -160,8 +160,9 @@ class layernorm_driver:
     self.collect_ila_result()
     self.gen_axi_cmds('0xA0000000')
     self.produce_ref_result()
-    err_out_list = self.result_analysis(verbose_analysis)
-    return err_out_list
+    return self.result_analysis()
+    # err_ref_list = self.result_analysis(verbose_analysis)
+    # return err_ref_list
 
 
   ##########################################
@@ -194,11 +195,12 @@ class layernorm_driver:
     ref = self.tl.get_relay_layernorm_ref(self.num_v, self.inp, self.beta, self.gamma)
     self.ref_out = ref.reshape(self.num_ts, -1)
 
-  def result_analysis(self, is_verbose):
+  def result_analysis(self, is_verbose=0):
     print('\n--------------------------------------------------------------')
     print('\tanalyze ILA simulation result')
     print('--------------------------------------------------------------\n')
-    err_out_list = []
+    err_ref_list = []
+    ts_stdd_list = []
     for i in range(self.num_ts):
       if not os.environ.get('USE_3LA_FPGA'):
         result_ts = self.result_ila[self.num_v*16*i : self.num_v*16*(i+1)]
@@ -208,11 +210,20 @@ class layernorm_driver:
             relative error (vs. ref): {:5.5%}\n".format(i, err_out, err_ref))
       if is_verbose:
         print("reference output: \n{}\nresult: \n{}\n".format(ref, result_ts))
-      err_out_list.append(err_out)
+      err_ref_list.append(err_ref)
 
-    mean, stdd = self.tl.cal_mean_stdd(err_out_list)
-    print(f"Summary of Mismatch: Mean: {mean:.5%}\t Standard Deviation: {stdd:.5%}.")
-    return err_out_list
+      avg_mm, stdd = self.tl.cal_error_single_tensor(result_ts, ref)
+      err_ref_list.append(avg_mm)
+      ts_stdd_list.append(stdd)
+
+      
+    #   if self.num_ts == 1:
+    #     avg_mm, stdd = self.tl.cal_error_single_tensor(result_ts, ref)
+    #     print(f"Summary of a single tensor: Mean: {avg_mm:.5%}\t Standard deviation: {stdd:.5%}")
+
+    # mean, stdd = self.tl.cal_mean_stdd(err_ref_list)
+    # print(f"Summary of Mismatch: Mean: {mean:.5%}\t Standard Deviation: {stdd:.5%}.")
+    return err_ref_list, ts_stdd_list
 
   def clean_up(self):
     for file in os.listdir('./test'):

@@ -259,7 +259,8 @@ class attention_layer:
     if is_verbose:
       print("reference output: \n{}\nresult: \n{}\n".format(self.ref_out, self.result_ila))
     err_out_list.append(err_out)
-    return err_out_list
+
+    return self.tl.cal_error_single_tensor(self.result_ila, self.ref_out)
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='FlexASR Attention Layer Driver')
