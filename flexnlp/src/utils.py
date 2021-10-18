@@ -34,11 +34,17 @@ class tool:
     """
     This function calculate the mean error and standard deviation among the elements
     a single result tensor compared with the reference tensor
+
+    Calculate the Frobenius Norm or 2-Norm of the tensors and return the relative errors
     """
-    diff = np.abs(result - ref)
-    avg_mismatch = np.mean(diff) / np.mean(np.abs(ref))
-    stdd = np.std(diff) / np.mean(np.abs(ref))
-    return avg_mismatch, stdd
+    # diff = np.abs(result - ref)
+    # avg_mismatch = np.mean(diff) / np.mean(np.abs(ref))
+    # stdd = np.std(diff) / np.mean(np.abs(ref))
+    diff = result - ref
+    # relative mis-match
+    rmm = np.linalg.norm(diff)/np.linalg.norm(ref)
+    stdd = 0
+    return rmm, stdd
 
 
   def cal_mean_stdd(self, data_list):

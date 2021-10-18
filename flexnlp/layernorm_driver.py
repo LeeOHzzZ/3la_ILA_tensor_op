@@ -210,7 +210,7 @@ class layernorm_driver:
             relative error (vs. ref): {:5.5%}\n".format(i, err_out, err_ref))
       if is_verbose:
         print("reference output: \n{}\nresult: \n{}\n".format(ref, result_ts))
-      err_ref_list.append(err_ref)
+      # err_ref_list.append(err_ref)
 
       avg_mm, stdd = self.tl.cal_error_single_tensor(result_ts, ref)
       err_ref_list.append(avg_mm)
