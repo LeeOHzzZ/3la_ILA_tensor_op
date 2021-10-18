@@ -1,0 +1,262 @@
+{
+    "attention": {
+        "64": {
+            "avg_mismatch": "13.60289%",
+            "avg_mismatch_stdd": "45.38467%"
+        },
+        "128": {
+            "avg_mismatch": "6.25560%",
+            "avg_mismatch_stdd": "1.65808%"
+        },
+        "256": {
+            "avg_mismatch": "5.74085%",
+            "avg_mismatch_stdd": "1.65844%"
+        },
+        "512": {
+            "avg_mismatch": "5.28440%",
+            "avg_mismatch_stdd": "1.32121%"
+        }
+    },
+    "layernorm": {
+        "64": {
+            "avg_mismatch": "0.24047%",
+            "avg_mismatch_stdd": "0.26738%"
+        },
+        "128": {
+            "avg_mismatch": "0.25722%",
+            "avg_mismatch_stdd": "0.20827%"
+        },
+        "256": {
+            "avg_mismatch": "0.26131%",
+            "avg_mismatch_stdd": "0.15729%"
+        },
+        "512": {
+            "avg_mismatch": "0.30854%",
+            "avg_mismatch_stdd": "0.12046%"
+        }
+    },
+    "linear_layer": {
+        "64": {
+            "avg_mismatch": "1.00065%",
+            "avg_mismatch_stdd": "0.42601%"
+        },
+        "128": {
+            "avg_mismatch": "0.88855%",
+            "avg_mismatch_stdd": "0.22637%"
+        },
+        "256": {
+            "avg_mismatch": "0.78941%",
+            "avg_mismatch_stdd": "0.17278%"
+        },
+        "512": {
+            "avg_mismatch": "0.68371%",
+            "avg_mismatch_stdd": "0.14391%"
+        }
+    },
+    "lstm": {
+        "64": {
+            "No.0": {
+                "avg_mismatch": "1.49644%",
+                "avg_mismatch_stdd": "0.51883%"
+            },
+            "No.1": {
+                "avg_mismatch": "2.29179%",
+                "avg_mismatch_stdd": "4.45275%"
+            },
+            "No.2": {
+                "avg_mismatch": "28.40856%",
+                "avg_mismatch_stdd": "20.44739%"
+            },
+            "No.3": {
+                "avg_mismatch": "43.40987%",
+                "avg_mismatch_stdd": "20.50610%"
+            },
+            "No.4": {
+                "avg_mismatch": "52.89852%",
+                "avg_mismatch_stdd": "19.36866%"
+            },
+            "No.5": {
+                "avg_mismatch": "60.28817%",
+                "avg_mismatch_stdd": "18.00375%"
+            },
+            "No.6": {
+                "avg_mismatch": "61.01316%",
+                "avg_mismatch_stdd": "16.28813%"
+            },
+            "No.7": {
+                "avg_mismatch": "65.58214%",
+                "avg_mismatch_stdd": "16.16927%"
+            },
+            "No.8": {
+                "avg_mismatch": "66.82019%",
+                "avg_mismatch_stdd": "16.57668%"
+            },
+            "No.9": {
+                "avg_mismatch": "67.82688%",
+                "avg_mismatch_stdd": "15.91135%"
+            }
+        },
+        "128": {
+            "No.0": {
+                "avg_mismatch": "1.39752%",
+                "avg_mismatch_stdd": "0.38923%"
+            },
+            "No.1": {
+                "avg_mismatch": "9.49901%",
+                "avg_mismatch_stdd": "11.80179%"
+            },
+            "No.2": {
+                "avg_mismatch": "39.74035%",
+                "avg_mismatch_stdd": "17.26042%"
+            },
+            "No.3": {
+                "avg_mismatch": "54.76887%",
+                "avg_mismatch_stdd": "15.34442%"
+            },
+            "No.4": {
+                "avg_mismatch": "66.14317%",
+                "avg_mismatch_stdd": "14.17860%"
+            },
+            "No.5": {
+                "avg_mismatch": "73.64897%",
+                "avg_mismatch_stdd": "13.20676%"
+            },
+            "No.6": {
+                "avg_mismatch": "77.79159%",
+                "avg_mismatch_stdd": "13.13407%"
+            },
+            "No.7": {
+                "avg_mismatch": "82.49672%",
+                "avg_mismatch_stdd": "12.54782%"
+            },
+            "No.8": {
+                "avg_mismatch": "84.63955%",
+                "avg_mismatch_stdd": "13.08250%"
+            },
+            "No.9": {
+                "avg_mismatch": "85.10936%",
+                "avg_mismatch_stdd": "13.05378%"
+            }
+        },
+        "256": {
+            "No.0": {
+                "avg_mismatch": "1.30019%",
+                "avg_mismatch_stdd": "0.27518%"
+            },
+            "No.1": {
+                "avg_mismatch": "23.80566%",
+                "avg_mismatch_stdd": "12.05348%"
+            },
+            "No.2": {
+                "avg_mismatch": "52.97013%",
+                "avg_mismatch_stdd": "11.27693%"
+            },
+            "No.3": {
+                "avg_mismatch": "73.10691%",
+                "avg_mismatch_stdd": "11.31517%"
+            },
+            "No.4": {
+                "avg_mismatch": "85.82582%",
+                "avg_mismatch_stdd": "11.29938%"
+            },
+            "No.5": {
+                "avg_mismatch": "92.40073%",
+                "avg_mismatch_stdd": "10.29724%"
+            },
+            "No.6": {
+                "avg_mismatch": "97.19085%",
+                "avg_mismatch_stdd": "8.45027%"
+            },
+            "No.7": {
+                "avg_mismatch": "102.48363%",
+                "avg_mismatch_stdd": "8.95203%"
+            },
+            "No.8": {
+                "avg_mismatch": "104.79385%",
+                "avg_mismatch_stdd": "8.05752%"
+            },
+            "No.9": {
+                "avg_mismatch": "105.09899%",
+                "avg_mismatch_stdd": "8.49081%"
+            }
+        },
+        "512": {
+            "No.0": {
+                "avg_mismatch": "1.20690%",
+                "avg_mismatch_stdd": "0.18594%"
+            },
+            "No.1": {
+                "avg_mismatch": "39.86667%",
+                "avg_mismatch_stdd": "8.17606%"
+            },
+            "No.2": {
+                "avg_mismatch": "69.27960%",
+                "avg_mismatch_stdd": "8.63937%"
+            },
+            "No.3": {
+                "avg_mismatch": "89.87055%",
+                "avg_mismatch_stdd": "6.95764%"
+            },
+            "No.4": {
+                "avg_mismatch": "101.62292%",
+                "avg_mismatch_stdd": "6.60170%"
+            },
+            "No.5": {
+                "avg_mismatch": "107.38155%",
+                "avg_mismatch_stdd": "6.87086%"
+            },
+            "No.6": {
+                "avg_mismatch": "111.39004%",
+                "avg_mismatch_stdd": "5.82243%"
+            },
+            "No.7": {
+                "avg_mismatch": "112.66027%",
+                "avg_mismatch_stdd": "6.51643%"
+            },
+            "No.8": {
+                "avg_mismatch": "113.18617%",
+                "avg_mismatch_stdd": "6.59434%"
+            },
+            "No.9": {
+                "avg_mismatch": "113.27638%",
+                "avg_mismatch_stdd": "6.36041%"
+            }
+        }
+    },
+    "maxpooling": {
+        "64": {
+            "avg_mismatch": "0.00002%",
+            "avg_mismatch_stdd": "0.00001%"
+        },
+        "128": {
+            "avg_mismatch": "0.00002%",
+            "avg_mismatch_stdd": "0.00000%"
+        },
+        "256": {
+            "avg_mismatch": "0.00002%",
+            "avg_mismatch_stdd": "0.00000%"
+        },
+        "512": {
+            "avg_mismatch": "0.00002%",
+            "avg_mismatch_stdd": "0.00000%"
+        }
+    },
+    "meanpooling": {
+        "64": {
+            "avg_mismatch": "1.79685%",
+            "avg_mismatch_stdd": "0.43640%"
+        },
+        "128": {
+            "avg_mismatch": "1.77919%",
+            "avg_mismatch_stdd": "0.26917%"
+        },
+        "256": {
+            "avg_mismatch": "1.79496%",
+            "avg_mismatch_stdd": "0.18740%"
+        },
+        "512": {
+            "avg_mismatch": "1.80189%",
+            "avg_mismatch_stdd": "0.13803%"
+        }
+    }
+}
