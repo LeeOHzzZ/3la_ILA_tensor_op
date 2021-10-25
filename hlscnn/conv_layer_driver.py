@@ -37,7 +37,7 @@ class conv_layer_driver:
     self.wgt_bitwidth = 8
     if os.getenv("HLSCNN_USE_16_WGT") is not None:
       self.wgt_bitwidth = 16
-    print("[HLSCNN] using {self.wgt_bitwidth}-bit weights")
+    print(f"[HLSCNN] using {self.wgt_bitwidth}-bit weights")
 
   
   def produce_vir_mem_wr_asm(self):
