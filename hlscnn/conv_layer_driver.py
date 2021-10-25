@@ -32,6 +32,13 @@ class conv_layer_driver:
     self.data_lib = []
     assert self.inp_chans == self.k_chan, 'input channels not equal to kernel channels'
     assert self.k_num == self.out_chans, 'output channels not equal to kernel numbers'
+
+    # add support for 16bit weight data, read as an env
+    self.wgt_bitwidth = 8
+    if os.getenv("HLSCNN_USE_16_WGT") is not None:
+      self.wgt_bitwidth = 16
+    print("[HLSCNN] using {self.wgt_bitwidth}-bit weights")
+
   
   def produce_vir_mem_wr_asm(self):
     """
@@ -164,9 +171,12 @@ class conv_layer_driver:
     print('\n--------------------------------------------------------------')
     print('\tcollecting input data')
     print('--------------------------------------------------------------\n')
-    cmd = ['hlscnn_pack_data',
-           str(self.inp_rows), str(self.inp_cols), str(self.inp_chans),
-           str(self.kernel_rows), str(self.kernel_cols), str(self.k_num)]
+    cmd = [
+      'hlscnn_pack_data',
+      str(self.inp_rows), str(self.inp_cols), str(self.inp_chans),
+      str(self.kernel_rows), str(self.kernel_cols), str(self.k_num),
+      str(self.wgt_bitwidth)
+    ]
     subprocess.run(cmd)
 
     with open('./data/packed_conv_act.json', 'r') as fin:
@@ -189,7 +199,19 @@ class conv_layer_driver:
     print('\tinvoking ILA simulator')
     print('--------------------------------------------------------------\n')
     # measure the time of ila simulation
-    cmd = ['hlscnn_asm_sim_driver', './test/conv_ila_prog_frag.json', './test/conv_ila_out.json']
+    if self.wgt_bitwidth == 8:
+      cmd = [
+        'hlscnn_asm_sim_driver', 
+        './test/conv_ila_prog_frag.json', 
+        './test/conv_ila_out.json'
+      ]
+    else:
+      assert self.wgt_bitwidth == 16, f"wrong weight_bitwidth size {self.wgt_bitwidth}"
+      cmd = [
+        "hlscnn_asm_sim_driver_wgt_16", 
+        "./test/conv_ila_prog_frag.json",
+        "./test/conv_ila_out.json",
+      ]
     start_time = timeit.default_timer()
     subprocess.run(cmd)
     end_time = timeit.default_timer()
