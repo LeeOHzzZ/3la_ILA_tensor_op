@@ -8,7 +8,7 @@ from src.utils import tool
 from src.converter import Converter as cvtr
 
 class pooling_layer_driver:
-  def __init__(self, mode, num_v_in, num_ts):
+  def __init__(self, mode, num_v_in, num_ts, repeats=1):
     """
     for pooling layers, num_v_in == num_v_out,
     mode: 'max': maxpooling; 'mean': mean-pooling
@@ -18,27 +18,27 @@ class pooling_layer_driver:
     self.num_v_in = num_v_in
     self.num_ts = num_ts
     self.mode = mode
+    self.repeats = repeats
     self.tl = tool()
   
   def produce_pooling_asm(self):
     ila_asm = []
+
     for i in range(self.num_ts):
       ila_asm.append({
         'name' : 'store_act',
         'timestep_idx' : 'ts_' + str(i),
         'idx' : i
       })
-    if self.mode == 'max':
+
+    name = {'max': 'maxp', 'mean': 'meanp'}[self.mode]
+    for i in range(self.repeats):
       ila_asm.append({
-        'name' : 'maxp',
-        'num_ts' : self.num_ts
+        'name': name,
+        'num_ts': self.num_ts >> i
       })
-    elif self.mode == 'mean':
-      ila_asm.append({
-        'name' : 'meanp',
-        'num_ts' : self.num_ts
-      })
-    for i in range(self.num_ts >> 1):
+
+    for i in range(self.num_ts >> self.repeats):
       ila_asm.append({
         'name' : 'load_act',
         'mem_idx' : 0,
@@ -112,7 +112,7 @@ class pooling_layer_driver:
     run ila simulation and collect the result
     """
     self.result_ila = self.tl.collect_ila_result(in_path='./test/pooling_prog_frag_in.json',
-                      mem_idx=0, num_ts=self.num_ts >> 1, 
+                      mem_idx=0, num_ts=self.num_ts >> self.repeats, 
                       num_vi=self.num_v_in, num_vo=self.num_v_in, bias=self.bias_inp)
 
   # --------------------------------------
@@ -166,11 +166,12 @@ class pooling_layer_driver:
     """
     inp = self.inp.reshape((self.num_ts, 16*self.num_v_in))
     out = []
-    for i in range(self.num_ts >> 1):
+    for i in range(self.num_ts >> self.repeats):
+      windows = inp[i << self.repeats:(i+1) << self.repeats, ]
       if self.mode == 'max':
-        out.append(np.maximum(inp[2*i, ], inp[2*i+1, ]))
+        out.append(np.maximum.reduce(windows))
       elif self.mode == 'mean':
-        out.append((inp[2*i, ] + inp[2*i+1, ])/2)
+        out.append((np.sum(windows, axis=0))/(1 << self.repeats))
     self.ref_out = out
   
   def result_analysis(self, is_verbose=0):
@@ -179,7 +180,7 @@ class pooling_layer_driver:
     print('--------------------------------------------------------------\n')
     err_ref_list = []
     ts_stdd_list = []
-    for i in range(self.num_ts >> 1):
+    for i in range(self.num_ts >> self.repeats):
       if not os.environ.get('USE_3LA_FPGA'):
         result_ts = self.result_ila[self.num_v_in*16*i : self.num_v_in*16*(i+1)]
       ref = self.tl.get_adpfloat_bias(self.ref_out[i])[0]
@@ -210,13 +211,14 @@ class pooling_layer_driver:
 
 
 if __name__ == '__main__':
-  assert len(sys.argv) == 4, \
-    "Usage: python3 pooling_driver.py [mode] [num_vector_in] [num_timestep]"
+  assert len(sys.argv) in [4, 5], \
+    "Usage: python3 pooling_driver.py <mode> <num_vector_in> <num_timestep> [num_repeats]"
   mode = sys.argv[1]
   num_v_in = int(sys.argv[2])
   num_ts = int(sys.argv[3])
-
-  test_driver = pooling_layer_driver(mode, num_v_in, num_ts)
+  repeats = int(sys.argv[4]) if len(sys.argv) > 4 else 1
+  
+  test_driver = pooling_layer_driver(mode, num_v_in, num_ts, repeats)
   # test_driver.run()
   test_driver.run_test(verbose_analysis=1)
   test_driver.clean_up()
