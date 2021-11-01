@@ -112,9 +112,9 @@ def build_driver(asm: AcceleratorASM, namespace=None, mem_namespace=None):
 
   class Driver:
 
-    def __init__(self, program, local_context):
+    def __init__(self, program, local_ctx):
       self.program = program
-      self.loc_ctx = local_context
+      self.loc_ctx = local_ctx
       self.progloc = 0
       self.simulator = Simulator()
 
@@ -128,13 +128,13 @@ def build_driver(asm: AcceleratorASM, namespace=None, mem_namespace=None):
       print("! WARNING: Resetting accelerator. !")
       acc_ctx = asm.mem_model.init()
 
-      pf = []
+      progf = []
       datalib = {}
       while self.progloc < len(self.program):
         instr, args = parse_instr(self.program[self.progloc])
         (code, data), update = instr.execute((self.loc_ctx, acc_ctx), *args)
         self.progloc += 1
-        pf += code
+        progf += code
         datalib.update(data)
         if callable(update):
           # TODO, FIXME, HACK for isinstance(update, DriverAction)
@@ -145,7 +145,7 @@ def build_driver(asm: AcceleratorASM, namespace=None, mem_namespace=None):
 
       asm_file = f'./test/{namespace}_asm.json'
       with open(asm_file, 'w') as fout:
-        json.dump({'asm': code}, fout, indent=4)
+        json.dump({'asm': progf}, fout, indent=4)
       print(f'*** ILA tensor assembly has been dumped to {asm_file} ***')
 
       dlib_file = f'./test/{namespace}_data_lib.json'
@@ -180,6 +180,9 @@ def build_driver(asm: AcceleratorASM, namespace=None, mem_namespace=None):
         self.loc_ctx = new_loc_ctx
 
       return (self.progloc == len(self.program))
+
+    def local_ctx(self):
+      return self.loc_ctx
 
   return Driver
 
