@@ -34,6 +34,7 @@
 # Default build/cache directory
 build/*
 .vscode/*
+.devcontainer/*
 flexnlp/__pycache__/*
 hlscnn/__pycache__/*
 vta/__pycache__/*
