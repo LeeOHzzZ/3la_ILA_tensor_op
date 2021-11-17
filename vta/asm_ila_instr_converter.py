@@ -192,7 +192,7 @@ def gen_alu(asm):
 def generate_ila_insns(asm):
   asm_types = ['load_wgt', 'load_inp', 'load_bias', 'load_uop', 'store_acc']
   asm_types += ['gemm']
-  asm_types += ['alu_max', 'alu_min', 'alu_add', 'alu_shr']
+  asm_types += ['alu_max', 'alu_min', 'alu_add', 'alu_shr', 'alu_mul']
   assert asm['name'] in asm_types, "not supported vta-ila assembly"
 
   # asm format: asm_name arg_0 [, arg_1, ...]
