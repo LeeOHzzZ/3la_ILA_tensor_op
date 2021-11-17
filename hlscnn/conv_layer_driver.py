@@ -4,13 +4,18 @@ python driver for hlscnn-ila simulator
 
 import json
 import sys
+from typing_extensions import OrderedDict
 import numpy as np
 import subprocess
 import os
 import argparse
 import timeit
 
+import tvm
+from tvm import relay, runtime
+
 from converter import Converter as cvtr
+from tvm.contrib import graph_executor
 
 class conv_layer_driver:
   __VIR_MEM_BASE_ADDR = 0x0
@@ -19,7 +24,8 @@ class conv_layer_driver:
   __SPAD1_BASE_ADDR = 0x800000
 
   def __init__(self, inp_size, out_size, kernel_size, stride,
-               is_bias, bias, is_relu, is_accum):
+               is_bias, bias, is_relu, is_accum, 
+               op_name = "ilacnn.conv2d", ref_run=False):
     self.inp_chans, self.inp_rows, self.inp_cols = inp_size
     self.out_chans, self.out_rows, self.out_cols = out_size
     self.k_num, self.k_chan, self.kernel_rows, self.kernel_cols = kernel_size
@@ -30,14 +36,19 @@ class conv_layer_driver:
     self.is_accum = is_accum
     self.ila_asm = []
     self.data_lib = []
+    self.op_name = op_name
     assert self.inp_chans == self.k_chan, 'input channels not equal to kernel channels'
     assert self.k_num == self.out_chans, 'output channels not equal to kernel numbers'
 
-    # add support for 16bit weight data, read as an env
-    self.wgt_bitwidth = 8
-    if os.getenv("HLSCNN_USE_16_WGT") is not None:
-      self.wgt_bitwidth = 16
-    print(f"[HLSCNN] using {self.wgt_bitwidth}-bit weights")
+    # add support for ref run for differential debugging
+    self.ref_run = ref_run
+    if ref_run:
+      print(f"[HLSCNN] Debugging mode, producing SW reference results")
+    else:
+      # add support for 16bit weight data, read as an env
+      self.wgt_bitwidth = 8
+      if os.getenv("HLSCNN_USE_16_WGT") is not None:
+        self.wgt_bitwidth = 16
 
   
   def produce_vir_mem_wr_asm(self):
@@ -171,12 +182,23 @@ class conv_layer_driver:
     print('\n--------------------------------------------------------------')
     print('\tcollecting input data')
     print('--------------------------------------------------------------\n')
-    cmd = [
-      'hlscnn_pack_data',
-      str(self.inp_rows), str(self.inp_cols), str(self.inp_chans),
-      str(self.kernel_rows), str(self.kernel_cols), str(self.k_num),
-      str(self.wgt_bitwidth)
-    ]
+    if os.getenv("HLSCNN_FOR_MOBILENET") is not None:
+      # special debugging for mobilenet
+      print(f"[HLSCNN] packing data for HLSCNN specially for MobileNetV2")
+      assert self.wgt_bitwidth == 16, "HLSCNN_USE_16_WGT not set yet"
+      cmd = [
+        'hlscnn_pack_data_mobilenet',
+        str(self.inp_rows), str(self.inp_cols), str(self.inp_chans),
+        str(self.kernel_rows), str(self.kernel_cols), str(self.k_num),
+        str(self.wgt_bitwidth)
+      ]
+    else:
+      cmd = [
+        'hlscnn_pack_data',
+        str(self.inp_rows), str(self.inp_cols), str(self.inp_chans),
+        str(self.kernel_rows), str(self.kernel_cols), str(self.k_num),
+        str(self.wgt_bitwidth)
+      ]
     subprocess.run(cmd)
 
     with open('./data/packed_conv_act.json', 'r') as fin:
@@ -199,19 +221,30 @@ class conv_layer_driver:
     print('\tinvoking ILA simulator')
     print('--------------------------------------------------------------\n')
     # measure the time of ila simulation
-    if self.wgt_bitwidth == 8:
+    if os.getenv("HLSCNN_FOR_MOBILENET") is not None:
+      # special debugging for mobilenet
+      print(f"[HLSCNN] special HLSCNN simulator for MobileNetV2")
       cmd = [
-        'hlscnn_asm_sim_driver', 
-        './test/conv_ila_prog_frag.json', 
-        './test/conv_ila_out.json'
-      ]
-    else:
-      assert self.wgt_bitwidth == 16, f"wrong weight_bitwidth size {self.wgt_bitwidth}"
-      cmd = [
-        "hlscnn_asm_sim_driver_wgt_16", 
+        "hlscnn_asm_sim_driver_wgt_16_mobilenet", 
         "./test/conv_ila_prog_frag.json",
         "./test/conv_ila_out.json",
       ]
+    else:
+      if self.wgt_bitwidth == 8:
+        print(f"[HLSCNN] using {self.wgt_bitwidth}-bit weights")
+        cmd = [
+          'hlscnn_asm_sim_driver', 
+          './test/conv_ila_prog_frag.json', 
+          './test/conv_ila_out.json'
+        ]
+      else:
+        assert self.wgt_bitwidth == 16, f"wrong weight_bitwidth size {self.wgt_bitwidth}"
+        print(f"[HLSCNN] using {self.wgt_bitwidth}-bit weights")
+        cmd = [
+          "hlscnn_asm_sim_driver_wgt_16", 
+          "./test/conv_ila_prog_frag.json",
+          "./test/conv_ila_out.json",
+        ]
     start_time = timeit.default_timer()
     subprocess.run(cmd)
     end_time = timeit.default_timer()
@@ -228,15 +261,73 @@ class conv_layer_driver:
       for addr in self.out_addr:
         key = f'0x{addr:08X}'
         result.append(ila_out[key])
-    np.asarray(result).tofile('./data/conv_result.txt', sep='\n')
+    result_np = np.asarray_chkfinite(result)
+    result_np.tofile('./data/conv_result.txt', sep='\n')
+
+    return result_np.tolist()
 
   def run(self):
     subprocess.run(['mkdir', '-p', 'test', 'data'])
-    self.collect_data_in()
-    self.produce_asm_all()
-    self.produce_prog_frag()
-    self.invoke_ila_simulator()
-    self.collect_ila_result()
+
+    if not self.ref_run:
+      self.collect_data_in()
+      self.produce_asm_all()
+      self.produce_prog_frag()
+      self.invoke_ila_simulator()
+      res = self.collect_ila_result()
+    else:
+      res = self.produce_ref_results()
+
+    # for per-layer debugging
+    if os.getenv("TVM_3LA_DIFF_DEBUG") is not None:
+      if self.ref_run:
+        self.collect_imm_result("3la_layer_ref_imm_results.json", res)
+      else:
+        self.collect_imm_result("3la_layer_imm_results.json", res)
+
+
+  def produce_ref_results(self):
+    """
+    Produce a ref result with relay/TVM
+    """
+    inp_shape = (1, self.inp_chans, self.inp_rows, self.inp_cols)
+    wgt_shape = (self.k_num, self.k_chan, self.kernel_rows, self.kernel_cols)
+    x = relay.Var("x", relay.TensorType(inp_shape))
+    y = relay.Var("y", relay.TensorType(wgt_shape))
+    conv_func = relay.Function(
+      [x, y], relay.nn.conv2d(x, y, strides=(self.k_r_stride, self.k_c_stride))
+    )
+
+    inp_data = np.fromfile("./data/inp.txt", sep="\n").reshape(inp_shape).astype("float32")
+    wgt_data = np.fromfile("./data/wgt.txt", sep="\n").reshape(wgt_shape).astype("float32")
+    mod = tvm.IRModule()
+    mod["main"] = conv_func
+    with tvm.transform.PassContext():
+      exe = relay.vm.compile(mod, "llvm")
+      vm = runtime.vm.VirtualMachine(exe, tvm.cpu())
+      args = [inp_data, wgt_data]
+      ret = vm.invoke("main", *args).asnumpy()
+    
+    ret.tofile("./data/conv_result.txt", sep="\n")
+
+    return ret.tolist()
+    
+
+  def collect_imm_result(self, fname, out):
+    """
+    collect intermediate results for per layer analysis
+    """
+    if not os.path.exists(fname):
+      json.dump({}, open(fname, "w"))
+    tensor_in = np.fromfile("./data/inp.txt", sep='\n')
+    imm_result_tb = json.load(open(fname, "r"))
+    imm_result_tb[self.op_name] = {
+      "in" : tensor_in.tolist(),
+      "out" : out,
+    }
+    with open(fname, "w") as fo:
+      json.dump(imm_result_tb, fo)
+
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description='ConvLayer Parameters')
@@ -248,6 +339,9 @@ if __name__ == '__main__':
   parser.add_argument('--bias', type=float, default=0)
   parser.add_argument('--is_relu', action='store_const', const=1, default=0)
   parser.add_argument('--is_accum', action='store_const', const=1, default=0)
+  
+  parser.add_argument("--op_name", default="ilacnn.conv2d")
+  parser.add_argument("--ref_run", type=bool, default=False)
   args = parser.parse_args()
   
   driver = conv_layer_driver(
@@ -258,7 +352,9 @@ if __name__ == '__main__':
     is_bias = args.is_bias,
     bias = args.bias,
     is_relu = args.is_relu,
-    is_accum = args.is_accum
+    is_accum = args.is_accum,
+    op_name = args.op_name,
+    ref_run=args.ref_run,
   )
   driver.run()
   # driver.produce_conv_layer_asm()

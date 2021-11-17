@@ -1,15 +1,16 @@
 import json
+import re
 import sys
 import numpy as np
 import subprocess
 import os
 import argparse
-
+from typing_extensions import OrderedDict
 from src.converter import Converter as cvtr
 from src.utils import tool
 
 class linear_layer_driver:
-  def __init__(self, num_v_in, num_v_out, num_timestep, is_bias, dtype, op_name=""):
+  def __init__(self, num_v_in, num_v_out, num_timestep, is_bias, dtype, op_name="", ref_run=False):
     self.num_v_in = num_v_in
     self.num_v_out = num_v_out
     self.num_ts = num_timestep
@@ -17,6 +18,9 @@ class linear_layer_driver:
     self.op_name = op_name
     self.dtype = dtype
     self.tl = tool()
+
+    # add a ref_run flag for debugging
+    self.ref_run = ref_run
 
 
   def produce_ly_asm(self):
@@ -65,9 +69,9 @@ class linear_layer_driver:
     print('\n--------------------------------------------------------------')
     print('\tproducing random input data')
     print('--------------------------------------------------------------\n')
-    coef = 0.2
-    wgt_init = coef*np.random.uniform(0, 1, (16*self.num_v_out, 16*self.num_v_in)).astype(np.float32)
-    inp_init = coef*np.random.uniform(0, 1, (self.num_v_in * 16 * self.num_ts)).astype(np.float32)
+    coef = 1
+    wgt_init = coef*np.random.uniform(-1, 1, (16*self.num_v_out, 16*self.num_v_in)).astype(np.float32)
+    inp_init = coef*np.random.uniform(-1, 1, (self.num_v_in * 16 * self.num_ts)).astype(np.float32)
     print('(wgt, inp) shape is ({},{})'.format(wgt_init.shape, tuple(t/self.num_ts for t in inp_init.shape)))
 
     if self.is_bias == 1:
@@ -120,7 +124,8 @@ class linear_layer_driver:
       ref_q, bias_act = self.tl.get_adpfloat_bias(ref)
       self.bias_act = bias_act
       # need to quantize the reference as well for comparsion
-      self.ref.append(ref_q)
+      # self.ref.append(ref_q)
+      self.ref.append(ref)
 
 
   def produce_ly_data_lib(self):
@@ -141,6 +146,8 @@ class linear_layer_driver:
       self.bias_inp = int(bias_inp + 10)
       self.bias_b = int(bias_b + 10)
       self.bias_act = int(self.bias_act + 10)
+      print(f"{self.bias_wgt}::{self.bias_b}::{self.bias_inp}::{self.bias_act}")
+
       # ---------------------------
       # init data_lib param
       # ---------------------------
@@ -281,7 +288,6 @@ class linear_layer_driver:
             relative error (vs. ref): {:5.5%}\n".format(i, err_out, err_ref))
       if is_verbose:
         print("reference output: \n{}\nresult: \n{}\n".format(ref, result_ts))
-      # err_ref_list.append(err_ref)
       avg_mm, stdd = self.tl.cal_error_single_tensor(result_ts, ref)
       err_ref_list.append(avg_mm)
       ts_stdd_list.append(stdd)
@@ -330,18 +336,50 @@ class linear_layer_driver:
   def run(self):
     subprocess.run(['mkdir', '-p', 'npy', 'test', 'data'])
     self.collect_data()
-    # driver needs producing reference result is to get output activation adpbias
-    self.produce_ref_result()
-    self.produce_ly_data_lib()
-    self.produce_ly_asm()
-    self.gen_prog_frag()
-    if not os.getenv('USE_3LA_FPGA') in ('1', 'ON'):
-      self.collect_ila_result()
-      self.result_ila.tofile('./data/result.txt', sep='\n')
+    if not self.ref_run:
+      # driver needs producing reference result is to get output activation adpbias
+      self.produce_ref_result()
+      self.produce_ly_data_lib()
+      self.produce_ly_asm()
+      self.gen_prog_frag()
+      if not os.getenv('USE_3LA_FPGA') in ('1', 'ON'):
+        self.collect_ila_result()
+        self.result_ila.tofile('./data/result.txt', sep='\n')
+      else:
+        self.gen_axi_cmds('0xA0000000')
+        self.collect_fpga_results()
+        self.result_fpga.tofile('./data/result.txt', sep = '\n')
+    
     else:
-      self.gen_axi_cmds('0xA0000000')
-      self.collect_fpga_results()
-      self.result_fpga.tofile('./data/result.txt', sep = '\n')
+      # run a software reference run and return the results
+      self.produce_ref_result()
+      np.asarray_chkfinite(self.ref).tofile("./data/result.txt", sep="\n")
+    
+    if os.getenv("TVM_3LA_DIFF_DEBUG"):
+      if self.ref_run:
+        self.collect_imm_result("3la_layer_ref_imm_results.json")
+      else:
+        self.collect_imm_result("3la_layer_imm_results.json")
+
+  
+  def collect_imm_result(self, fname):
+    """
+    collect intermediate results for per layer analysis
+    """
+    if not os.path.exists(fname):
+      json.dump({}, open(fname, "w"))
+    tensor_in = np.fromfile("./data/inp.txt", sep='\n')
+    tensor_out = np.fromfile("./data/result.txt", sep='\n')
+    imm_result_tb = json.load(open(fname, "r"))
+    imm_result_tb[self.op_name] = {
+      # "in" : tensor_in.tolist(),
+      "in" : self.inp.tolist(),
+      "out" : tensor_out.tolist(),
+      "wgt_range" : f"{np.min(self.wgt)}, {np.max(self.wgt)}",
+      "bias_range" : f"{np.min(self.bias)}, {np.max(self.bias)}",
+    }
+    with open(fname, "w") as fo:
+      json.dump(imm_result_tb, fo)
 
   
 
@@ -377,6 +415,9 @@ if __name__ == '__main__':
   parser.add_argument("--dtype", type=str, required=True, choices=["float32", "int8"],
                       help="Specify data type of the computation")
   parser.add_argument("--op_name", type=str, default="linear_layer")
+  # add an argument for return a sw reference result
+  parser.add_argument("--ref_run", type=bool, default=False)
+
   kwargs = vars(parser.parse_args())
 
   driver = linear_layer_driver(**kwargs)
