@@ -226,7 +226,7 @@ class attention_layer:
     self.encoder_data = coef * np.random.uniform(-1, 1, enc_shape)
     self.decoder_data = coef * np.random.uniform(-1, 1, dec_shape)
     
-    test = np.random.uniform(-1, 1, (10,))
+    test = coef * np.random.uniform(-1, 1, (10,))
     # quantize the data
     self.encoder_data, self.adpbias_enc = self.tl.get_adpfloat_bias(self.encoder_data)
     self.decoder_data, self.adpbias_dec = self.tl.get_adpfloat_bias(self.decoder_data)
@@ -253,14 +253,13 @@ class attention_layer:
     print('--------------------------------------------------------------\n')
     err_out_list = []
     if not os.environ.get("USE_3LA_FPGA"):
-      err_out, err_ref = self.tl.cal_error(self.ref_out, self.result_ila)
-      print("result: relative error (vs. sim_out): {:5.5%}\
-            relative error (vs. ref): {:5.5%}\n".format(err_out, err_ref))
+      err_out = self.tl.cal_error_single_tensor(self.ref_out, self.result_ila)
+      print("result: relative error (vs. ref): {:5.5%}\n".format(err_out))
     if is_verbose:
       print("reference output: \n{}\nresult: \n{}\n".format(self.ref_out, self.result_ila))
     err_out_list.append(err_out)
 
-    return self.tl.cal_error_single_tensor(self.result_ila, self.ref_out)
+    return self.tl.cal_error_single_tensor(self.ref_out, self.result_ila)
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='FlexASR Attention Layer Driver')

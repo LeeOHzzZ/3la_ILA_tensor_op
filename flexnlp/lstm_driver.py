@@ -288,7 +288,7 @@ class lstm_layer_driver:
                        num_vi=self.num_v_in, num_vo=self.num_v_out, bias=self.bias_act,
                        base_addr=base_addr, op_name=self.op_name)
 
-  def run_test(self, use_relay=1, verbose_analysis=0):
+  def run_test(self, use_relay=True, verbose_analysis=0):
     subprocess.run(['mkdir', '-p', 'npy', 'test', 'data'])
     self.produce_lstm_asm()
     self.produce_random_test_data()
@@ -332,15 +332,22 @@ class lstm_layer_driver:
     print('\n--------------------------------------------------------------')
     print('\tproducing random input data')
     print('--------------------------------------------------------------\n')
-    coef = 0.8
+    coef = 1
     # input weight matrix dimension is (4 x output, input)
     # hidden weight matrix dimension is (4 x output, input)
+    # wgt_i_init = \
+    #   coef * np.random.uniform(-1, 1, (4*16*self.num_v_out, 16*self.num_v_in)).astype(np.float32)
+    # wgt_h_init = \
+    #   coef * np.random.uniform(-1, 1, (4*16*self.num_v_out, 16*self.num_v_out)).astype(np.float32)
+    # inp_init = \
+    #   coef * np.random.uniform(-1, 1, (self.num_v_in * 16 * self.num_ts)).astype(np.float32)
     wgt_i_init = \
-      coef * np.random.uniform(-1, 1, (4*16*self.num_v_out, 16*self.num_v_in)).astype(np.float32)
+      coef * np.random.normal(0, coef, (4*16*self.num_v_out, 16*self.num_v_in)).astype(np.float32)
     wgt_h_init = \
-      coef * np.random.uniform(-1, 1, (4*16*self.num_v_out, 16*self.num_v_out)).astype(np.float32)
+      coef * np.random.normal(0, coef, (4*16*self.num_v_out, 16*self.num_v_out)).astype(np.float32)
     inp_init = \
-      coef * np.random.uniform(-1, 1, (self.num_v_in * 16 * self.num_ts)).astype(np.float32)
+      coef * np.random.normal(0, coef, (self.num_v_in * 16 * self.num_ts)).astype(np.float32)
+    
     print('(wgt_i, wgt_h, inp) shape is ({}, {}, {})'.format(
       wgt_i_init.shape, wgt_h_init.shape,
       tuple(t/self.num_ts for t in inp_init.shape)
@@ -418,7 +425,7 @@ class lstm_layer_driver:
     return h_t, cell_state
   
 
-  def produce_ref_result(self, use_relay = 1):
+  def produce_ref_result(self, use_relay = True):
     print('\n--------------------------------------------------------------')
     print('\tproducing reference LSTM results')
     print('--------------------------------------------------------------\n')
@@ -458,13 +465,11 @@ class lstm_layer_driver:
       else:
         result_ts = self.result_fpga[self.num_v_out*16*i : self.num_v_out*16*(i+1)]
       ref = self.ref_out[i]
-      err_out, err_ref = self.tl.cal_error(result_ts, ref)
-      print("result timestep No.{} --- relative error (vs. sim_out): {:5.5%}\
-            relative error (vs. ref): {:5.5%}\n".format(i, err_out, err_ref))
+      avg_mm, ts_stdd = self.tl.cal_error_single_tensor(result_ts, ref)
+      print("result timestep No.{} --- relative error (vs. sim_out): {:5.5%}\n".format(i, avg_mm))
       if is_verbose:
         print("reference output: \n{}\nresult: \n{}\n".format(ref, result_ts))
       # err_out_list.append(err_out)
-      avg_mm, ts_stdd = self.tl.cal_error_single_tensor(result_ts, ref)
       err_out_list.append(avg_mm)
       ts_stdd_list.append(ts_stdd)
 

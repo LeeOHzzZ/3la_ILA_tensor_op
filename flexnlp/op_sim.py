@@ -102,11 +102,12 @@ def test_attention():
         for i in range(iteration):
             test_driver = attention_layer(
                 num_v=v,
-                num_ts=10,
+                num_ts=1,
                 mem_idx_dec=0,
                 mem_idx_enc=0,
             )
-            err, stdd = test_driver.run_test()
+            err = test_driver.run_test()
+            stdd = 0
             err_list.append(err)
             stdd_list.append(stdd)
         np.array(err_list).tofile(
@@ -148,10 +149,10 @@ def test_lstm():
 
 
 if __name__ == "__main__":
-    test_maxpooling()
-    test_meanpooling()
-    test_layernorm()
+    # test_maxpooling()
+    # test_meanpooling()
+    # test_layernorm()
     test_attention()
-    test_linear_layer()
-    test_lstm()
+    # test_linear_layer()
+    # test_lstm()
 

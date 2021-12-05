@@ -43,8 +43,7 @@ class tool:
     diff = result - ref
     # relative mis-match
     rmm = np.linalg.norm(diff)/np.linalg.norm(ref)
-    stdd = 0
-    return rmm, stdd
+    return rmm
 
 
   def cal_mean_stdd(self, data_list):

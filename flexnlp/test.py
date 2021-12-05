@@ -17,16 +17,16 @@ def test_lstm():
   num_ts = int(sys.argv[4])
   is_bias = int(sys.argv[5])
   is_zero_first = int(sys.argv[6])
-  if sys.argv[7]:
+  if len(sys.argv) > 7:
     iter_num = int(sys.argv[7])
   else:
     iter_num = 1
   test_driver = lstm_layer_driver(num_v_in, num_v_out, num_ts, is_bias, is_zero_first)
-  use_relay = 0
+  use_relay = True
   verbose_analysis = 0
   err_out_list = []
   for i in range(iter_num):
-    err_out_list += test_driver.run_test(use_relay, verbose_analysis)
+    err_out_list.append(test_driver.run_test(use_relay, verbose_analysis)[0])
   mean, stdd = tool().cal_mean_stdd(err_out_list)
   print(f"Summary of Mismatch: Mean: {mean:.5%}\t Standard Deviation: {stdd:.5%}.")
   test_driver.clean_up()
@@ -75,14 +75,14 @@ def test_attention_layer():
     "Usage: python3 test.py attention [num_ts] [num_v]"
   num_ts = int(sys.argv[2])
   num_v = int(sys.argv[3])
-  if sys.argv[4]:
+  if len(sys.argv) > 4:
     loop_num = int(sys.argv[4])
   else:
     loop_num = 1
   test_driver = attention_layer(num_ts=num_ts, num_v=num_v, mem_idx_enc=0, mem_idx_dec=0)
   err_out_list = []
   for i in range(loop_num):
-    err_out_list += test_driver.run_test()
+    err_out_list.append(test_driver.run_test())
   mean, stdd = tool().cal_mean_stdd(err_out_list)
   print(f"Summary of Mismatch: Mean: {mean:.5%}\t Standard Deviation: {stdd:.5%}.")
 
