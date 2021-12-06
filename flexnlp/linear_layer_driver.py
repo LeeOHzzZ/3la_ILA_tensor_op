@@ -252,16 +252,24 @@ class linear_layer_driver:
     print('--------------------------------------------------------------\n')
     self.ila_cvtr = cvtr('./test/ly_asm.json', './test/ly_data_lib.json')
     self.ila_cvtr.dump_ila_asm('./test/ly_ila_asm.json')
-    self.ila_cvtr.dump_ila_prog_frag('./test/ly_prog_frag_in.json')
-    print('***ILA program fragment has been dumped to ./test/ly_prog_frag_in.json***\n')
+    self.ila_cvtr.dump_ila_prog_frag('./test/flexasr_ila_prog_frag_in.json')
+    print('***ILA program fragment has been dumped to ./test/flexasr_ila_prog_frag_in.json***\n')
   
 
   def collect_ila_result(self):
     """
     run ila simulation and collect the result
     """
-    self.result_ila = self.tl.collect_ila_result(
-      in_path='./test/ly_prog_frag_in.json',
+    # self.result_ila = self.tl.collect_ila_result(
+    #   in_path='./test/flexasr_ila_prog_frag_in.json',
+    #   mem_idx=1, 
+    #   num_ts=self.num_ts, 
+    #   num_vi=self.num_v_in, 
+    #   num_vo=self.num_v_out, 
+    #   bias=self.bias_act,
+    #   dtype=self.dtype,
+    # )
+    self.result_ila = self.tl.collect_ila_result_from_persist_sim(
       mem_idx=1, 
       num_ts=self.num_ts, 
       num_vi=self.num_v_in, 
@@ -269,7 +277,6 @@ class linear_layer_driver:
       bias=self.bias_act,
       dtype=self.dtype,
     )
-
 
   def result_analysis(self, is_verbose = 0, is_fpga = 0):
     print('\n--------------------------------------------------------------')
@@ -288,9 +295,9 @@ class linear_layer_driver:
             relative error (vs. ref): {:5.5%}\n".format(i, err_out, err_ref))
       if is_verbose:
         print("reference output: \n{}\nresult: \n{}\n".format(ref, result_ts))
-      avg_mm, stdd = self.tl.cal_error_single_tensor(result_ts, ref)
+      avg_mm = self.tl.cal_error_single_tensor(result_ts, ref)
       err_ref_list.append(avg_mm)
-      ts_stdd_list.append(stdd)
+      ts_stdd_list.append(0)
       # if self.num_ts == 1:
       #   avg_mm, stdd = self.tl.cal_error_single_tensor(result_ts, ref)
       #   print(f"Summary of a single tensor: Mean: {avg_mm:.5%}\t Standard deviation: {stdd:.5%}")
@@ -381,13 +388,14 @@ class linear_layer_driver:
     with open(fname, "w") as fo:
       json.dump(imm_result_tb, fo)
 
-  
 
   def run_test(self):
     subprocess.run(['mkdir', '-p', 'npy', 'test', 'data'])
+    subprocess.Popen(["flex_persistent_sim_driver", "&"])
     self.produce_linear_layer_test()
     self.gen_prog_frag()
     self.collect_ila_result()
+    open("stupid_terminate_file", "w").write(" ")
     self.gen_axi_cmds('0xA0000000')
     self.result_ila.tofile('./data/result_ila_sim.txt', sep='\n')
     return self.result_analysis()
