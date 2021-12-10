@@ -354,6 +354,7 @@ class tool:
     print('--------------------------------------------------------------\n')
     # measure the time of the ila simulation
     start_time = timeit.default_timer()
+    assert not os.path.exists("stupid_flexasr_irq_file")
     open("stupid_trigger_file", "w").write(" ")
     while not os.path.exists("stupid_flexasr_irq_file"):
       continue
