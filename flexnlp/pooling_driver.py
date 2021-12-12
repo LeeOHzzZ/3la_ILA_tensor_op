@@ -183,24 +183,14 @@ class pooling_layer_driver:
       if not os.environ.get('USE_3LA_FPGA'):
         result_ts = self.result_ila[self.num_v_in*16*i : self.num_v_in*16*(i+1)]
       ref = self.tl.get_adpfloat_bias(self.ref_out[i])[0]
-      err_out, err_ref = self.tl.cal_error(result_ts, ref)
-      print("result timestep No.{} --- relative error (vs. sim_out): {:5.5%}\
-            relative error (vs. ref): {:5.5%}\n".format(i, err_out, err_ref))
+      avg_mm = self.tl.cal_error_single_tensor(result_ts, ref)
+      print(f"result timestep No.{i} --- relative error (vs. ref): {avg_mm:.5%}")
       if is_verbose:
         print("reference output: \n{}\nresult: \n{}\n".format(ref, result_ts))
       # err_ref_list.append(err_ref)
-
-      avg_mm, ts_stdd = self.tl.cal_error_single_tensor(result_ts, ref)
       err_ref_list.append(avg_mm)
-      ts_stdd_list.append(ts_stdd)
+      ts_stdd_list.append(0)
 
-
-      # if self.num_ts == 2:
-      #   avg_mm, stdd = self.tl.cal_error_single_tensor(result_ts, ref)
-      #   print(f"Summary of a single tensor: Mean: {avg_mm:.5%}\t Standard deviation: {stdd:.5%}")
-    
-    # mean, stdd = self.tl.cal_mean_stdd(err_ref_list)
-    # print(f"Summary of Mismatch: Mean: {mean:.5%}\t Standard Deviation: {stdd:.5%}.")
     return err_ref_list, ts_stdd_list
 
   def clean_up(self):

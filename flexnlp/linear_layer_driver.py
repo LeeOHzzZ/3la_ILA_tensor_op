@@ -283,20 +283,13 @@ class linear_layer_driver:
       else:
         result_ts = self.result_ila[self.num_v_out*16*i : self.num_v_out*16*(i+1)]
       ref = self.ref[i]
-      err_out, err_ref = self.tl.cal_error(result_ts, ref)
-      print("result timestep No.{} --- relative error (vs. sim_out): {:5.5%}\
-            relative error (vs. ref): {:5.5%}\n".format(i, err_out, err_ref))
+      avg_mm = self.tl.cal_error_single_tensor(result_ts, ref)
+      print(f"result timestep No.{i} --- relative error (vs. ref): {avg_mm:.5%}")
       if is_verbose:
         print("reference output: \n{}\nresult: \n{}\n".format(ref, result_ts))
-      avg_mm, stdd = self.tl.cal_error_single_tensor(result_ts, ref)
       err_ref_list.append(avg_mm)
-      ts_stdd_list.append(stdd)
-      # if self.num_ts == 1:
-      #   avg_mm, stdd = self.tl.cal_error_single_tensor(result_ts, ref)
-      #   print(f"Summary of a single tensor: Mean: {avg_mm:.5%}\t Standard deviation: {stdd:.5%}")
-    
-    # mean, stdd = self.tl.cal_mean_stdd(err_ref_list)
-    # print(f"Summary of Mismatch: Mean: {mean:.5%}\t Standard Deviation: {stdd:.5%}.")
+      ts_stdd_list.append(0)
+
     return err_ref_list, ts_stdd_list
 
   # --------------------------------------

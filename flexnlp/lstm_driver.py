@@ -465,17 +465,13 @@ class lstm_layer_driver:
       else:
         result_ts = self.result_fpga[self.num_v_out*16*i : self.num_v_out*16*(i+1)]
       ref = self.ref_out[i]
-      avg_mm, ts_stdd = self.tl.cal_error_single_tensor(result_ts, ref)
-      print("result timestep No.{} --- relative error (vs. sim_out): {:5.5%}\n".format(i, avg_mm))
+      avg_mm = self.tl.cal_error_single_tensor(result_ts, ref)
+      print("result timestep No.{} --- relative error (vs. ref): {:5.5%}\n".format(i, avg_mm))
       if is_verbose:
         print("reference output: \n{}\nresult: \n{}\n".format(ref, result_ts))
-      # err_out_list.append(err_out)
       err_out_list.append(avg_mm)
-      ts_stdd_list.append(ts_stdd)
+      ts_stdd_list.append(0)
 
-
-    # mean, stdd = self.tl.cal_mean_stdd(err_out_list)
-    # print(f"Summary of Mismatch: Mean: {mean:.5%}\t Standard Deviation: {stdd:.5%}.")
     return err_out_list, ts_stdd_list
 
   def clean_up(self):

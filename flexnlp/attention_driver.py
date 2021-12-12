@@ -253,14 +253,14 @@ class attention_layer:
     print('--------------------------------------------------------------\n')
     err_out_list = []
     if not os.environ.get("USE_3LA_FPGA"):
-      err_out = self.tl.cal_error_single_tensor(self.ref_out, self.result_ila)
+      err_out = self.tl.cal_error_single_tensor(self.result_ila, self.ref_out)
       print("result: relative error (vs. ref): {:5.5%}\n".format(err_out))
     if is_verbose:
       print("reference output: \n{}\nresult: \n{}\n".format(self.ref_out, self.result_ila))
     err_out_list.append(err_out)
 
-    return self.tl.cal_error_single_tensor(self.ref_out, self.result_ila)
-
+    return err_out
+    
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='FlexASR Attention Layer Driver')
   parser.add_argument("--num_ts", type=int, required=True, help="number of timestep of the encoder")
