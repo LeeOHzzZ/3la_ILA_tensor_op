@@ -48,9 +48,12 @@ def gen_load_wgt(asm):
                 bin(asm['x_size'])[2:].zfill(VTA_MEMOP_SIZE_BITWIDTH) + \
                 bin(asm['y_size'])[2:].zfill(VTA_MEMOP_SIZE_BITWIDTH)
 
-  instr = hex(int(bin_instr_h, base=2)) + \
-          hex(int(bin_instr_l, base=2))[2:].zfill(int(VTA_INSTR_BITWIDTH/8))
-  
+  instr = (
+    "0x0" +
+    hex(int(bin_instr_h, base=2))[2:] +
+    hex(int(bin_instr_l, base=2))[2:].zfill(int(VTA_INSTR_BITWIDTH/8))
+  )
+
   return prog_frag_gen(instr, 0, 0, '0x0')
 
 def gen_load_inp(asm):
@@ -72,8 +75,11 @@ def gen_load_inp(asm):
                 bin(asm['x_stride'])[2:].zfill(VTA_MEMOP_STRIDE_BITWIDTH) + \
                 bin(asm['x_size'])[2:].zfill(VTA_MEMOP_SIZE_BITWIDTH) + \
                 bin(asm['y_size'])[2:].zfill(VTA_MEMOP_SIZE_BITWIDTH)
-  instr = hex(int(bin_instr_h, base=2)) + \
-          hex(int(bin_instr_l, base=2))[2:].zfill(int(VTA_INSTR_BITWIDTH/8))
+  instr = (
+    "0x0" +
+    hex(int(bin_instr_h, base=2))[2:] +
+    hex(int(bin_instr_l, base=2))[2:].zfill(int(VTA_INSTR_BITWIDTH/8))
+  )
 
   return prog_frag_gen(instr, 0, 0, '0x0')
 
@@ -93,9 +99,12 @@ def gen_load_bias(asm):
                 bin(asm['x_size'])[2:].zfill(VTA_MEMOP_SIZE_BITWIDTH) + \
                 bin(asm['y_size'])[2:].zfill(VTA_MEMOP_SIZE_BITWIDTH)
 
-  instr = hex(int(bin_instr_h, base=2)) + \
-          hex(int(bin_instr_l, base=2))[2:].zfill(int(VTA_INSTR_BITWIDTH/8))
-  
+  instr = (
+    "0x0" +
+    hex(int(bin_instr_h, base=2))[2:] +
+    hex(int(bin_instr_l, base=2))[2:].zfill(int(VTA_INSTR_BITWIDTH/8))
+  )
+
   return prog_frag_gen(instr, 0, 0, '0x0')
 
 def gen_load_uop(asm):
@@ -111,9 +120,12 @@ def gen_load_uop(asm):
                 bin(VTA_OPCODE_LOAD)[2:].zfill(VTA_OPCODE_BITWIDTH)
   bin_instr_h = bin(asm['x_size'])[2:].zfill(VTA_MEMOP_SIZE_BITWIDTH) + \
                 VTA_MEMOP_SIZE_BITWIDTH * '0'
-  instr = hex(int(bin_instr_h, base=2)) + \
-          hex(int(bin_instr_l, base=2))[2:].zfill(int(VTA_INSTR_BITWIDTH/8))
-  
+  instr = (
+    "0x0" +
+    hex(int(bin_instr_h, base=2))[2:] +
+    hex(int(bin_instr_l, base=2))[2:].zfill(int(VTA_INSTR_BITWIDTH/8))
+  )
+
   return prog_frag_gen(instr, 0, 0, '0x0')
 
 def gen_store_acc(asm):
@@ -132,9 +144,12 @@ def gen_store_acc(asm):
                 bin(asm['x_size'])[2:].zfill(VTA_MEMOP_SIZE_BITWIDTH) + \
                 bin(asm['y_size'])[2:].zfill(VTA_MEMOP_SIZE_BITWIDTH)
 
-  instr = hex(int(bin_instr_h, base=2)) + \
-          hex(int(bin_instr_l, base=2))[2:].zfill(int(VTA_INSTR_BITWIDTH/8))
-  
+  instr = (
+    "0x0" +
+    hex(int(bin_instr_h, base=2))[2:] +
+    hex(int(bin_instr_l, base=2))[2:].zfill(int(VTA_INSTR_BITWIDTH/8))
+  )
+
   return prog_frag_gen(instr, 0, 0, '0x0')
 
 def gen_gemm(asm):
@@ -158,9 +173,12 @@ def gen_gemm(asm):
                 bin(asm['dst_fi'])[2:].zfill(VTA_GEMM_DST_FACTOR_IN_BITWIDTH) + \
                 bin(asm['dst_fo'])[2:].zfill(VTA_GEMM_DST_FACTOR_OUT_BITWIDTH)
   
-  instr = hex(int(bin_instr_h, base=2)) + \
-          hex(int(bin_instr_l, base=2))[2:].zfill(int(VTA_INSTR_BITWIDTH/8))
-  
+  instr = (
+    "0x0" +
+    hex(int(bin_instr_h, base=2))[2:] +
+    hex(int(bin_instr_l, base=2))[2:].zfill(int(VTA_INSTR_BITWIDTH/8))
+  )
+
   return prog_frag_gen(instr, 0, 0, '0x0')
 
 def gen_alu(asm):
@@ -176,15 +194,22 @@ def gen_alu(asm):
                 bin(asm['uop_bgn'])[2:].zfill(VTA_GEMM_UOP_BEGIN_BITWIDTH) + \
                 bin(asm['reset_f'])[2:].zfill(1) + 4*'0' + \
                 bin(VTA_OPCODE_ALU)[2:].zfill(VTA_OPCODE_BITWIDTH)
-  bin_instr_h = bin(asm['imm'])[2:].zfill(VTA_ALU_IMM_BITWIDTH) + \
-                bin(asm['use_imm'])[2:].zfill(VTA_ALU_USE_IMM_FLAG_BITWIDTH) + \
-                bin(asm['alu_op'])[2:].zfill(VTA_ALU_OPCODE_BITWIDTH) + \
-                bin(asm['src_fi'])[2:].zfill(VTA_ALU_SRC_FACTOR_IN_BITWIDTH) + \
-                bin(asm['src_fo'])[2:].zfill(VTA_ALU_SRC_FACTOR_OUT_BITWIDTH) + \
-                bin(asm['dst_fi'])[2:].zfill(VTA_ALU_DST_FACTOR_IN_BITWIDTH) + \
-                bin(asm['dst_fo'])[2:].zfill(VTA_ALU_DST_FACTOR_OUT_BITWIDTH)
-  instr = hex(int(bin_instr_h, base=2)) + \
-          hex(int(bin_instr_l, base=2))[2:].zfill(int(VTA_INSTR_BITWIDTH/8))
+  bin_imm = bin(((1 << VTA_ALU_IMM_BITWIDTH) - 1) & asm["imm"])
+  bin_instr_h = (
+    "0" + 
+    bin_imm[2:].zfill(VTA_ALU_IMM_BITWIDTH) + 
+    bin(asm['use_imm'])[2:].zfill(VTA_ALU_USE_IMM_FLAG_BITWIDTH) + 
+    bin(asm['alu_op'])[2:].zfill(VTA_ALU_OPCODE_BITWIDTH) + 
+    bin(asm['src_fi'])[2:].zfill(VTA_ALU_SRC_FACTOR_IN_BITWIDTH) + 
+    bin(asm['src_fo'])[2:].zfill(VTA_ALU_SRC_FACTOR_OUT_BITWIDTH) + 
+    bin(asm['dst_fi'])[2:].zfill(VTA_ALU_DST_FACTOR_IN_BITWIDTH) + 
+    bin(asm['dst_fo'])[2:].zfill(VTA_ALU_DST_FACTOR_OUT_BITWIDTH)
+  )
+  instr = (
+    "0x0" +
+    hex(int(bin_instr_h, base=2))[2:] +
+    hex(int(bin_instr_l, base=2))[2:].zfill(int(VTA_INSTR_BITWIDTH/8))
+  )
   
   return prog_frag_gen(instr, 0, 0, '0x0')
 
@@ -192,7 +217,7 @@ def gen_alu(asm):
 def generate_ila_insns(asm):
   asm_types = ['load_wgt', 'load_inp', 'load_bias', 'load_uop', 'store_acc']
   asm_types += ['gemm']
-  asm_types += ['alu_max', 'alu_min', 'alu_add', 'alu_shr']
+  asm_types += ['alu_max', 'alu_min', 'alu_add', 'alu_shr', 'alu_mul']
   assert asm['name'] in asm_types, "not supported vta-ila assembly"
 
   # asm format: asm_name arg_0 [, arg_1, ...]
