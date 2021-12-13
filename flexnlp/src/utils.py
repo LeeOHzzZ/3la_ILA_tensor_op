@@ -18,6 +18,10 @@ from .tool.relay_layers import relay_attention
 
 FLEXNLP_VECTOR_SIZE = 16
 FLEXNLP_GBCORE_NUM_BANKS = 16
+FLEXNLP_ADDR_BASE = 0x33000000
+FLEXNLP_GB_LARGE_BUF_BASE = FLEXNLP_ADDR_BASE + 0x00500000
+FLEXNLP_GB_SMALL_BUF_BASE = FLEXNLP_ADDR_BASE + 0X00600000
+
 
 class tool:
   def __init__(self):
@@ -246,7 +250,11 @@ class tool:
     if mem_type == "large":
       for ts_idx in range(num_ts):
         for v_idx in range(num_vo):
-          addr = mem_base + self.get_gb_large_addr_offset(ts_idx, num_vo, v_idx)
+          addr = (
+            FLEXNLP_GB_LARGE_BUF_BASE + 
+            mem_base + 
+            self.get_gb_large_addr_offset(ts_idx, num_vo, v_idx)
+          )
           addr_str = '0x{:08X}'.format(addr)
           data_str = v_data[addr_str][2:]
           assert len(data_str) == 32, "wrong length for ILA simulator return result"
@@ -254,7 +262,7 @@ class tool:
             data_list.append('0x{}\n'.format(data_str[30-2*b_idx:32-2*b_idx]))
     else:
       for v_idx in range(num_vo):
-        addr = mem_base + 16*v_idx
+        addr = FLEXNLP_GB_SMALL_BUF_BASE + mem_base + 16*v_idx
         addr_str = "0x{:08X}".format(addr)
         data_str = v_data[addr_str][2:]
         assert len(data_str) == 32, "wrong length for ILA simulator return result"
