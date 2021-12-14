@@ -401,6 +401,37 @@ class tool:
     return np.fromfile("./test/result.tmp", sep='\n').astype(dtype)
   
 
+  def collect_ila_result_from_persist_sim(self, mem_idx, num_ts, num_vi, num_vo, bias, 
+                                          dtype="float32", mem_type="large"):
+    # mem_type: where result is located in the gb memory
+    assert mem_type == 'large' or mem_type == 'small'
+    print('\n--------------------------------------------------------------')
+    print('\tinvoking ILA simulator')
+    print('--------------------------------------------------------------\n')
+    # measure the time of the ila simulation
+    start_time = timeit.default_timer()
+    assert not os.path.exists("stupid_flexasr_irq_file")
+    open("stupid_trigger_file", "w").write(" ")
+    while not os.path.exists("stupid_flexasr_irq_file"):
+      continue
+    # need to remove the irq file
+    os.remove("stupid_flexasr_irq_file")
+    end_time = timeit.default_timer()
+    print(f"ILA simulator execution time is {end_time - start_time:.04f}s")
+    self.collect_axi_out(
+      in_path="test/flexasr_ila_sim_results.txt",
+      out_path="test/result.tmp",
+      mem_idx = mem_idx, 
+      num_ts = num_ts, 
+      num_vi = num_vi,
+      num_vo = num_vo, 
+      bias = bias,
+      dtype = dtype,
+      mem_type=mem_type
+    )
+    return np.fromfile("./test/result.tmp", sep='\n').astype(dtype)
+  
+
   """
   for generating FPGA source code file
   """
