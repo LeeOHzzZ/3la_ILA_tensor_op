@@ -19,6 +19,8 @@ from .tool.relay_layers import relay_attention
 FLEXNLP_VECTOR_SIZE = 16
 FLEXNLP_GBCORE_NUM_BANKS = 16
 FLEXNLP_ADDR_BASE = 0x33000000
+FLEXNLP_PE_PARTITION_OFFSET = 0x01000000
+FLEXNLP_PE_ACT_BUF_BASE = 0x00900000
 FLEXNLP_GB_LARGE_BUF_BASE = FLEXNLP_ADDR_BASE + 0x00500000
 FLEXNLP_GB_SMALL_BUF_BASE = FLEXNLP_ADDR_BASE + 0X00600000
 
@@ -260,7 +262,7 @@ class tool:
           assert len(data_str) == 32, "wrong length for ILA simulator return result"
           for b_idx in range(16):
             data_list.append('0x{}\n'.format(data_str[30-2*b_idx:32-2*b_idx]))
-    else:
+    elif mem_type == "small":
       for v_idx in range(num_vo):
         addr = FLEXNLP_GB_SMALL_BUF_BASE + mem_base + 16*v_idx
         addr_str = "0x{:08X}".format(addr)
@@ -268,7 +270,21 @@ class tool:
         assert len(data_str) == 32, "wrong length for ILA simulator return result"
         for b_idx in range(16):
           data_list.append('0x{}\n'.format(data_str[30-2*b_idx:32-2*b_idx]))
-
+    elif mem_type == "pe_act":
+      for pe_idx in range(4):
+        for v_idx in range(num_vo // 4):
+          addr = (
+            FLEXNLP_ADDR_BASE + 
+            pe_idx * FLEXNLP_PE_PARTITION_OFFSET +
+            FLEXNLP_PE_ACT_BUF_BASE +
+            v_idx * 0x010
+          )
+          addr_str = "0x{:08X}".format(addr)
+          data_str = v_data[addr_str][2:]
+          assert len(data_str) == 32, "wrong length for ILA simulator return result"
+          for b_idx in range(16):
+            data_list.append('0x{}\n'.format(data_str[30-2*b_idx:32-2*b_idx]))
+  
     with open('./test/ila_result.tmp', 'w') as fout:
       fout.writelines(data_list)
 
@@ -276,6 +292,8 @@ class tool:
       self.call_adpt_float_cvtr('./test/ila_result.tmp', bias, out_path)
     elif dtype == "int8":
       self.call_collect_int8_result("./test/ila_result.tmp", out_path)
+
+    return np.fromfile(out_path, sep='\n').astype(dtype)
   
   def axi_out_to_float_fpga(self, in_path, out_path, mem_idx, num_ts, num_vi, num_vo, bias,
                             base_addr='0xa0500000'):
@@ -331,7 +349,7 @@ class tool:
   def collect_ila_result(self, in_path, mem_idx, num_ts, num_vi, num_vo, bias,
                          dtype = "float32", mem_type = 'large'):
     # mem_type: where result is located in the gb memory
-    assert mem_type == 'large' or mem_type == 'small'
+    assert mem_type in ("large", "small", "pe_act")
     print('\n--------------------------------------------------------------')
     print('\tinvoking ILA simulator')
     print('--------------------------------------------------------------\n')
@@ -341,16 +359,15 @@ class tool:
     end_time = timeit.default_timer()
     print('\n********* ILA simulator performance ***********')
     print('ILA simulator execution time is {:04f}s'.format(end_time - start_time))
-    self.collect_axi_out(in_path = './test/adpf_result.tmp', 
-                          out_path = './test/result.tmp',
-                          mem_idx = mem_idx, 
-                          num_ts = num_ts, 
-                          num_vi = num_vi,
-                          num_vo = num_vo, 
-                          bias = bias,
-                          dtype = dtype,
-                          mem_type=mem_type)
-    return np.fromfile("./test/result.tmp", sep='\n').astype(dtype)
+    return self.collect_axi_out(in_path = './test/adpf_result.tmp', 
+                                out_path = './test/result.tmp',
+                                mem_idx = mem_idx, 
+                                num_ts = num_ts, 
+                                num_vi = num_vi,
+                                num_vo = num_vo, 
+                                bias = bias,
+                                dtype = dtype,
+                                mem_type=mem_type)
 
 
   """

@@ -22,7 +22,7 @@ def test_lstm():
   else:
     iter_num = 1
   test_driver = lstm_layer_driver(num_v_in, num_v_out, num_ts, is_bias, is_zero_first)
-  use_relay = True
+  use_relay = False
   verbose_analysis = 0
   err_out_list = []
   for i in range(iter_num):

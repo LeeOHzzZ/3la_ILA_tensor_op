@@ -63,6 +63,11 @@ class lstm_layer_driver:
         'mem_idx' : 1,
         'ts_idx' : i
       })
+    # reading LSTM cell state from the pe_act_buffer
+    ila_asm.append({
+      "name" : "load_lstm_cell_state",
+      "idx" : 0,
+    })
 
     ila_asm = {'asm': ila_asm}
     self.ts_asm_lib = ila_asm
@@ -261,9 +266,26 @@ class lstm_layer_driver:
     """
     run ila simulation and collect the result
     """
-    self.result_ila = self.tl.collect_ila_result(in_path='./test/lstm_prog_frag_in.json',
-                      mem_idx=1, num_ts=self.num_ts, 
-                      num_vi = self.num_v_in, num_vo=self.num_v_out, bias=self.bias_act);
+    self.hidden_state_out = self.tl.collect_ila_result(
+      in_path='./test/lstm_prog_frag_in.json',
+      mem_idx=1, 
+      num_ts=self.num_ts, 
+      num_vi = self.num_v_in, 
+      num_vo=self.num_v_out, 
+      bias=self.bias_act
+    )
+    # TODO: temporarily collect the result cell state tensor separately
+    self.cell_state_out = self.tl.collect_axi_out(
+      in_path = './test/adpf_result.tmp', 
+      out_path = './test/cell_state.tmp',
+      mem_idx=1, 
+      num_ts=self.num_ts, 
+      num_vi = self.num_v_in, 
+      num_vo=self.num_v_out, 
+      bias=self.bias_act,
+      dtype = "float32",
+      mem_type="pe_act",
+    )
 
 
   # --------------------------------------
@@ -288,7 +310,7 @@ class lstm_layer_driver:
                        num_vi=self.num_v_in, num_vo=self.num_v_out, bias=self.bias_act,
                        base_addr=base_addr, op_name=self.op_name)
 
-  def run_test(self, use_relay=True, verbose_analysis=0):
+  def run_test(self, use_relay=False, verbose_analysis=0):
     subprocess.run(['mkdir', '-p', 'npy', 'test', 'data'])
     self.produce_lstm_asm()
     self.produce_random_test_data()
@@ -310,7 +332,8 @@ class lstm_layer_driver:
     self.gen_prog_frag()
     if not os.getenv('USE_3LA_FPGA') in ('1', 'ON'):
       self.collect_ila_result()
-      self.result_ila.tofile('./data/lstm_out.txt', sep='\n')
+      self.hidden_state_out.tofile('./data/lstm_hidden_state_out.txt', sep='\n')
+      self.cell_state_out.tofile("./data/lstm_cell_state_out.txt", sep='\n')
     else:
       self.gen_axi_cmds('0xA0000000')
       self.collect_fpga_results()
@@ -335,18 +358,18 @@ class lstm_layer_driver:
     coef = 1
     # input weight matrix dimension is (4 x output, input)
     # hidden weight matrix dimension is (4 x output, input)
-    # wgt_i_init = \
-    #   coef * np.random.uniform(-1, 1, (4*16*self.num_v_out, 16*self.num_v_in)).astype(np.float32)
-    # wgt_h_init = \
-    #   coef * np.random.uniform(-1, 1, (4*16*self.num_v_out, 16*self.num_v_out)).astype(np.float32)
-    # inp_init = \
-    #   coef * np.random.uniform(-1, 1, (self.num_v_in * 16 * self.num_ts)).astype(np.float32)
     wgt_i_init = \
-      coef * np.random.normal(0, coef, (4*16*self.num_v_out, 16*self.num_v_in)).astype(np.float32)
+      coef * np.random.uniform(-1, 1, (4*16*self.num_v_out, 16*self.num_v_in)).astype(np.float32)
     wgt_h_init = \
-      coef * np.random.normal(0, coef, (4*16*self.num_v_out, 16*self.num_v_out)).astype(np.float32)
+      coef * np.random.uniform(-1, 1, (4*16*self.num_v_out, 16*self.num_v_out)).astype(np.float32)
     inp_init = \
-      coef * np.random.normal(0, coef, (self.num_v_in * 16 * self.num_ts)).astype(np.float32)
+      coef * np.random.uniform(-1, 1, (self.num_v_in * 16 * self.num_ts)).astype(np.float32)
+    # wgt_i_init = \
+    #   coef * np.random.normal(0, coef, (4*16*self.num_v_out, 16*self.num_v_in)).astype(np.float32)
+    # wgt_h_init = \
+    #   coef * np.random.normal(0, coef, (4*16*self.num_v_out, 16*self.num_v_out)).astype(np.float32)
+    # inp_init = \
+    #   coef * np.random.normal(0, coef, (self.num_v_in * 16 * self.num_ts)).astype(np.float32)
     
     print('(wgt_i, wgt_h, inp) shape is ({}, {}, {})'.format(
       wgt_i_init.shape, wgt_h_init.shape,
@@ -449,6 +472,7 @@ class lstm_layer_driver:
         hidden_state = self.tl.get_adpfloat_bias(hidden_state)[0]
         cell_state = self.tl.get_adpfloat_bias(cell_state)[0]
         self.ref_out.append(hidden_state)
+        self.ref_cell_state = cell_state
 
   # --------------------------------------
   # result analysis
@@ -461,7 +485,7 @@ class lstm_layer_driver:
     ts_stdd_list = []
     for i in range(self.num_ts):
       if not os.getenv('USE_3LA_FPGA') in ('1', 'ON'):
-        result_ts = self.result_ila[self.num_v_out*16*i : self.num_v_out*16*(i+1)]
+        result_ts = self.hidden_state_out[self.num_v_out*16*i : self.num_v_out*16*(i+1)]
       else:
         result_ts = self.result_fpga[self.num_v_out*16*i : self.num_v_out*16*(i+1)]
       ref = self.ref_out[i]
@@ -471,6 +495,10 @@ class lstm_layer_driver:
         print("reference output: \n{}\nresult: \n{}\n".format(ref, result_ts))
       err_out_list.append(avg_mm)
       ts_stdd_list.append(0)
+    
+    # comparing cell state
+    err = self.tl.cal_error_single_tensor(self.cell_state_out, self.ref_cell_state)
+    print(f"cell state result: --- relative error (vs. ref): {err:.5%}")
 
     return err_out_list, ts_stdd_list
 

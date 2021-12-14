@@ -3,6 +3,9 @@ class ts_asm_converter:
   __FLEXNLP_VECTOR_SIZE = 16
   __FLEXNLP_GBCORE_NUM_BANKS = 16
   __FLEXNLP_ADDR_BASE = 0x33000000
+  __FLEXNLP_PE_PARTITION_OFFSET = 0x01000000
+  __FLEXNLP_PE_ACT_BUF_BASE = 0x00900000
+  __FLEXNLP_PE_ACT_BUF_BOUND = 0x009001F0
   __FLEXNLP_GB_LARGE_BUF_BASE = __FLEXNLP_ADDR_BASE + 0x00500000
   __FLEXNLP_GB_SMALL_BUF_BASE = __FLEXNLP_ADDR_BASE + 0X00600000
   __GB_CONTROL_START = 1
@@ -83,7 +86,7 @@ class ts_asm_converter:
     """
     generate flexnlp-ila assembly from ILA tensor assembly
     """
-    asm_types = ['store_act', 'store_wgt', 'store_bias', 'load_act']
+    asm_types = ['store_act', 'store_wgt', 'store_bias', 'load_act', 'load_lstm_cell_state']
     asm_types += ['store_wgt_i', 'store_wgt_h', 'store_bias_i', 'store_bias_h']
     asm_types += ['store_beta', 'store_gamma', 'store_dec']
     asm_types += ['maxp', 'meanp','linear_layer', 'lstm_layer', 'layernorm', 'attention']
@@ -100,6 +103,8 @@ class ts_asm_converter:
       return self.gen_store_bias(asm)
     if asm['name'] == 'load_act':
       return self.gen_load_act(asm)
+    if asm['name'] == "load_lstm_cell_state":
+      return self.gen_load_lstm_cell_state(asm)
 
     if asm['name'] == 'store_wgt_i':
       return self.gen_store_wgt_i(asm)
@@ -228,6 +233,39 @@ class ts_asm_converter:
         'addr' : hex(addr)
       })
     return ret
+  
+
+  def gen_load_lstm_cell_state(self, asm):
+    # format: load_lstm_cell_state [idx]
+    # [idx]: the index of the cell state in the pe_act buffer
+    # description: 
+    #   load the LSTM cell state tensor from the FlexASR act buffer
+    # assumption:
+    #   This instruction to fetch num_v_out/4 vectors from each of 4 PE Act buffer
+    num_v_out = self.data_lib["gb_num_vector_out"]
+    assert num_v_out % 4 == 0, (
+      "Current LSTM codegen only support output vector number to be integer multiple of 4"
+    )
+    idx = asm["idx"]
+    assert idx == 0 , "LSTM codegen only support cell state idx to be 0"
+    ret = []
+    for pe_idx in range(4):
+      for v_idx in range(num_v_out // 4):
+        addr = (
+          self.__FLEXNLP_ADDR_BASE + 
+          pe_idx * self.__FLEXNLP_PE_PARTITION_OFFSET +
+          self.__FLEXNLP_PE_ACT_BUF_BASE + 
+          v_idx * 0x010
+        )
+        assert self.__FLEXNLP_PE_ACT_BUF_BASE+v_idx*0x010 <= self.__FLEXNLP_PE_ACT_BUF_BOUND, (
+          f"lstm cell state address is out of bound -- {addr}"
+        )
+        ret.append({
+          "name" : "read_v", 
+          "addr" : hex(addr),
+        })
+    return ret
+
 
   def gen_store_wgt_i(self, asm):
     # format: store_wgt_i [wgt_idx]
