@@ -355,11 +355,11 @@ class tool:
     print('--------------------------------------------------------------\n')
     # measure the time of ila simulation
     start_time = timeit.default_timer()
-    self.call_ila_simulator(dtype, in_path, './test/adpf_result.tmp')
+    self.call_ila_simulator(dtype, in_path, './test/flexasr_adpf_result.txt')
     end_time = timeit.default_timer()
     print('\n********* ILA simulator performance ***********')
     print('ILA simulator execution time is {:04f}s'.format(end_time - start_time))
-    return self.collect_axi_out(in_path = './test/adpf_result.tmp', 
+    return self.collect_axi_out(in_path = './test/flexasr_adpf_result.txt', 
                                 out_path = './test/result.tmp',
                                 mem_idx = mem_idx, 
                                 num_ts = num_ts, 
