@@ -11,6 +11,8 @@ import os
 import argparse
 import timeit
 
+from math import ceil
+
 import tvm
 from tvm import relay, runtime
 
@@ -22,6 +24,8 @@ class conv_layer_driver:
   __SPAD0_BASE_ADDR = 0x04000
   # __SPAD1_BASE_ADDR = 0X24000
   __SPAD1_BASE_ADDR = 0x800000
+
+  __CHANNEL_BLOCK_SIZE = 8
 
   def __init__(self, inp_size, out_size, kernel_size, stride,
                is_bias, bias, is_relu, is_accum, 
@@ -146,21 +150,29 @@ class conv_layer_driver:
     """
     # reference from conv_test_standalone in host.h by Harvard
     # out_idx is the idx of the output element in the output matrix
-    self.out_addr = [] # holding the address of the output element
-    
-    for n in range(self.k_num):
+
+    # need to reorder the out_addr back to NCHW format
+    self.out_addr = [[] for i in range(self.k_num)] # holding the address of the output element
+
+    for chan_blk in range(ceil(self.k_num / self.__CHANNEL_BLOCK_SIZE)):
       for i in range(self.out_rows):
         for j in range(self.out_cols):
-          in_row = int(i*self.k_r_stride + (self.kernel_rows-1)/2)
-          in_col = int(j*self.k_c_stride + (self.kernel_cols-1)/2)
-          spad_idx = n*self.inp_rows*self.inp_cols + in_row*self.inp_cols + in_col
-          spad_addr = spad_idx * 0x10 + self.__SPAD1_BASE_ADDR
+          spad_addr_v = chan_blk*self.out_rows*self.out_cols + i*self.out_cols + j
+          spad_addr = spad_addr_v * 0x10 + self.__SPAD1_BASE_ADDR
           # append the read instructions
           self.ila_asm.append({
             'name' : 'SpadRd',
             'addr' : hex(spad_addr)
           })
-          self.out_addr.append(spad_addr + ((self.k_num-1)%8) * 2)
+
+          for n in range(self.__CHANNEL_BLOCK_SIZE):
+            filter_idx = chan_blk * self.__CHANNEL_BLOCK_SIZE + n
+            if filter_idx < self.k_num:
+              self.out_addr[filter_idx].append(
+                spad_addr + (filter_idx % self.__CHANNEL_BLOCK_SIZE) * 2
+              )
+            else:
+              break
   
   def produce_asm_all(self):
     self.produce_vir_mem_wr_asm()
@@ -258,9 +270,10 @@ class conv_layer_driver:
     with open('./test/conv_ila_out.json', 'r') as fin:
       ila_out = json.load(fin)
       result = []
-      for addr in self.out_addr:
-        key = f'0x{addr:08X}'
-        result.append(ila_out[key])
+      for filter_idx in range(self.k_num):
+        for addr in self.out_addr[filter_idx]:
+          key = f'0x{addr:08X}'
+          result.append(ila_out[key])
     result_np = np.asarray_chkfinite(result)
     result_np.tofile('./data/conv_result.txt', sep='\n')
 
