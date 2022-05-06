@@ -6,12 +6,12 @@ import subprocess
 import os
 import argparse
 from typing_extensions import OrderedDict
+
+from base_driver import FlexASRBaseDriver
 from src.converter import Converter as cvtr
 from src.utils import tool
 
-class linear_layer_driver:
-  ADPTFLOAT_OFFSET = 10
-  
+class linear_layer_driver(FlexASRBaseDriver):
   """
   If adptbias is set to None, then it would use the default auto-generated adaptive-float bias
   else, the adptbias is hard-coded to the value set below
@@ -20,6 +20,7 @@ class linear_layer_driver:
   ADPTBIAS = None
 
   def __init__(self, num_v_in, num_v_out, num_timestep, is_bias, dtype, op_name="", ref_run=False):
+    super().__init__()
     self.num_v_in = num_v_in
     self.num_v_out = num_v_out
     self.num_ts = num_timestep
@@ -130,7 +131,7 @@ class linear_layer_driver:
     for i in range(self.num_ts):
       inp_ts = self.inp[self.num_v_in*16*i : self.num_v_in*16*(i+1)]
       ref = np.add(np.matmul(self.wgt, inp_ts), self.bias)
-      ref_q, bias_act = self.tl.get_adpfloat_bias(ref, self.ADPTBIAS)
+      ref_q, bias_act = self.tl.get_adpfloat_bias(ref, self.ADPTFLOAT_N_BITS, self.ADPTFLOAT_N_EXP, self.ADPTBIAS)
       self.bias_act = bias_act
       # need to quantize the reference as well for comparsion
       # self.ref.append(ref_q)
@@ -144,9 +145,9 @@ class linear_layer_driver:
       # --------------------------
       # get quantized inputs & weight tiling
       # --------------------------
-      wgt_q, bias_wgt = self.tl.get_adpfloat_bias(self.wgt, self.ADPTBIAS)
-      inp_q, bias_inp = self.tl.get_adpfloat_bias(self.inp, self.ADPTBIAS)
-      bias_q, bias_b = self.tl.get_adpfloat_bias(self.bias, self.ADPTBIAS)
+      wgt_q, bias_wgt = self.tl.get_adpfloat_bias(self.wgt, self.ADPTFLOAT_N_BITS, self.ADPTFLOAT_N_EXP, self.ADPTBIAS)
+      inp_q, bias_inp = self.tl.get_adpfloat_bias(self.inp, self.ADPTFLOAT_N_BITS, self.ADPTFLOAT_N_EXP, self.ADPTBIAS)
+      bias_q, bias_b = self.tl.get_adpfloat_bias(self.bias, self.ADPTFLOAT_N_BITS, self.ADPTFLOAT_N_EXP, self.ADPTBIAS)
 
       print('\n*** performed weight matrix tiliing for PEs***\n')
       wgt_qt = self.tl.wgt_tiling(wgt_q, self.num_v_in, self.num_v_out)

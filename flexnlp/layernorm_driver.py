@@ -4,14 +4,16 @@ import numpy as np
 import subprocess
 import os
 
+from base_driver import FlexASRBaseDriver
 from src.utils import tool
 from src.converter import Converter as cvtr
 
-class layernorm_driver:
+class layernorm_driver(FlexASRBaseDriver):
   ADPFLOAT_OFFSET = 10
   ADPTBIAS = None
 
   def __init__(self, num_v, num_ts):
+    super().__init__()
     """
     for layernorm, num_v_in == num_v_out
     """
@@ -58,9 +60,9 @@ class layernorm_driver:
     """
     produce data_lib for layernorm
     """
-    inp_q, bias_inp = self.tl.get_adpfloat_bias(self.inp, self.ADPTBIAS)
-    beta_q, bias_beta = self.tl.get_adpfloat_bias(self.beta, self.ADPTBIAS)
-    gamma_q, bias_gamma = self.tl.get_adpfloat_bias(self.gamma, self.ADPTBIAS)
+    inp_q, bias_inp = self.tl.get_adpfloat_bias(self.inp, self.ADPTFLOAT_N_BITS, self.ADPTFLOAT_N_EXP, self.ADPTBIAS)
+    beta_q, bias_beta = self.tl.get_adpfloat_bias(self.beta, self.ADPTFLOAT_N_BITS, self.ADPTFLOAT_N_EXP, self.ADPTBIAS)
+    gamma_q, bias_gamma = self.tl.get_adpfloat_bias(self.gamma, self.ADPTFLOAT_N_BITS, self.ADPTFLOAT_N_EXP, self.ADPTBIAS)
     
     self.adpbias_inp = int(bias_inp + self.ADPFLOAT_OFFSET)
     self.adpbias_beta = int(bias_beta + self.ADPFLOAT_OFFSET)

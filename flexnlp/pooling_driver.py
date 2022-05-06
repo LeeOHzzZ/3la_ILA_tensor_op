@@ -4,14 +4,15 @@ import numpy as np
 import subprocess
 import os
 
+from base_driver import FlexASRBaseDriver
 from src.utils import tool
 from src.converter import Converter as cvtr
 
-class pooling_layer_driver:
-  ADPTFLOAT_OFFSET = 10
+class pooling_layer_driver(FlexASRBaseDriver):
   ADPTBIAS = None
 
   def __init__(self, mode, num_v_in, num_ts):
+    super().__init__()
     """
     for pooling layers, num_v_in == num_v_out,
     mode: 'max': maxpooling; 'mean': mean-pooling
@@ -59,7 +60,7 @@ class pooling_layer_driver:
     """
     get quantized inputs
     """
-    inp_q, adpbias_inp = self.tl.get_adpfloat_bias(self.inp, self.ADPTBIAS)
+    inp_q, adpbias_inp = self.tl.get_adpfloat_bias(self.inp, self.ADPTFLOAT_N_BITS, self.ADPTFLOAT_N_EXP, self.ADPTBIAS)
     self.bias_inp = int(adpbias_inp + self.ADPTFLOAT_OFFSET)
     param = {
       'gb_num_vector_in' : self.num_v_in,
@@ -185,7 +186,7 @@ class pooling_layer_driver:
     for i in range(self.num_ts >> 1):
       if not os.environ.get('USE_3LA_FPGA'):
         result_ts = self.result_ila[self.num_v_in*16*i : self.num_v_in*16*(i+1)]
-      ref = self.tl.get_adpfloat_bias(self.ref_out[i])[0]
+      ref = self.tl.get_adpfloat_bias(self.ref_out[i], self.ADPTFLOAT_N_BITS, self.ADPTFLOAT_N_EXP, self.ADPTBIAS)[0]
       avg_mm = self.tl.cal_error_single_tensor(result_ts, ref)
       print(f"result timestep No.{i} --- relative error (vs. ref): {avg_mm:.5%}")
       if is_verbose:
