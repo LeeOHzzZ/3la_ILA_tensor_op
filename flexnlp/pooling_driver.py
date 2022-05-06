@@ -8,6 +8,9 @@ from src.utils import tool
 from src.converter import Converter as cvtr
 
 class pooling_layer_driver:
+  ADPTFLOAT_OFFSET = 10
+  ADPTBIAS = None
+
   def __init__(self, mode, num_v_in, num_ts):
     """
     for pooling layers, num_v_in == num_v_out,
@@ -56,8 +59,8 @@ class pooling_layer_driver:
     """
     get quantized inputs
     """
-    inp_q, adpbias_inp = self.tl.get_adpfloat_bias(self.inp)
-    self.bias_inp = int(adpbias_inp + 10)
+    inp_q, adpbias_inp = self.tl.get_adpfloat_bias(self.inp, self.ADPTBIAS)
+    self.bias_inp = int(adpbias_inp + self.ADPTFLOAT_OFFSET)
     param = {
       'gb_num_vector_in' : self.num_v_in,
       'gb_num_vector_out' : self.num_v_in,
@@ -136,7 +139,7 @@ class pooling_layer_driver:
     self.collect_ila_result()
     self.gen_axi_cmds('0xA0000000')
     self.produce_ref_result()
-    return self.result_analysis()
+    return self.result_analysis(verbose_analysis)
     # err_ref_list = self.result_analysis(verbose_analysis)
     # return err_ref_list
   
@@ -187,6 +190,8 @@ class pooling_layer_driver:
       print(f"result timestep No.{i} --- relative error (vs. ref): {avg_mm:.5%}")
       if is_verbose:
         print("reference output: \n{}\nresult: \n{}\n".format(ref, result_ts))
+        print("ref before quantized:", self.ref_out[i])
+        print(f"Diff: \n{ref-result_ts}")
       # err_ref_list.append(err_ref)
       err_ref_list.append(avg_mm)
       ts_stdd_list.append(0)

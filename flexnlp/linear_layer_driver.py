@@ -10,6 +10,15 @@ from src.converter import Converter as cvtr
 from src.utils import tool
 
 class linear_layer_driver:
+  ADPTFLOAT_OFFSET = 10
+  
+  """
+  If adptbias is set to None, then it would use the default auto-generated adaptive-float bias
+  else, the adptbias is hard-coded to the value set below
+  """
+  # ADPTBIAS = -10
+  ADPTBIAS = None
+
   def __init__(self, num_v_in, num_v_out, num_timestep, is_bias, dtype, op_name="", ref_run=False):
     self.num_v_in = num_v_in
     self.num_v_out = num_v_out
@@ -121,7 +130,7 @@ class linear_layer_driver:
     for i in range(self.num_ts):
       inp_ts = self.inp[self.num_v_in*16*i : self.num_v_in*16*(i+1)]
       ref = np.add(np.matmul(self.wgt, inp_ts), self.bias)
-      ref_q, bias_act = self.tl.get_adpfloat_bias(ref)
+      ref_q, bias_act = self.tl.get_adpfloat_bias(ref, self.ADPTBIAS)
       self.bias_act = bias_act
       # need to quantize the reference as well for comparsion
       # self.ref.append(ref_q)
@@ -135,17 +144,17 @@ class linear_layer_driver:
       # --------------------------
       # get quantized inputs & weight tiling
       # --------------------------
-      wgt_q, bias_wgt = self.tl.get_adpfloat_bias(self.wgt)
-      inp_q, bias_inp = self.tl.get_adpfloat_bias(self.inp)
-      bias_q, bias_b = self.tl.get_adpfloat_bias(self.bias)
+      wgt_q, bias_wgt = self.tl.get_adpfloat_bias(self.wgt, self.ADPTBIAS)
+      inp_q, bias_inp = self.tl.get_adpfloat_bias(self.inp, self.ADPTBIAS)
+      bias_q, bias_b = self.tl.get_adpfloat_bias(self.bias, self.ADPTBIAS)
 
       print('\n*** performed weight matrix tiliing for PEs***\n')
       wgt_qt = self.tl.wgt_tiling(wgt_q, self.num_v_in, self.num_v_out)
 
-      self.bias_wgt = int(bias_wgt + 10)
-      self.bias_inp = int(bias_inp + 10)
-      self.bias_b = int(bias_b + 10)
-      self.bias_act = int(self.bias_act + 10)
+      self.bias_wgt = int(bias_wgt + self.ADPTFLOAT_OFFSET)
+      self.bias_inp = int(bias_inp + self.ADPTFLOAT_OFFSET)
+      self.bias_b = int(bias_b + self.ADPTFLOAT_OFFSET)
+      self.bias_act = int(self.bias_act + self.ADPTFLOAT_OFFSET)
       print(f"{self.bias_wgt}::{self.bias_b}::{self.bias_inp}::{self.bias_act}")
 
       # ---------------------------

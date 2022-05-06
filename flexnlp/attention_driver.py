@@ -193,14 +193,14 @@ class attention_layer:
     self.tl.clean_up()
     
 
-  def run_test(self):
+  def run_test(self, is_verbose=0):
     subprocess.run(['mkdir', '-p', 'npy', 'test', 'data'])
     self._get_ref_result()
     self._produce_attention_asm()
     self._produce_data_lib()
     self._gen_prog_frag()
     self._collect_ila_result()
-    err_out_list = self._result_analysis(is_verbose=False)
+    err_out_list = self._result_analysis(is_verbose)
     self.tl.clean_up()
     return err_out_list
 
@@ -257,6 +257,7 @@ class attention_layer:
       print("result: relative error (vs. ref): {:5.5%}\n".format(err_out))
     if is_verbose:
       print("reference output: \n{}\nresult: \n{}\n".format(self.ref_out, self.result_ila))
+      print("diff: ", self.ref_out - self.result_ila)
     err_out_list.append(err_out)
 
     return err_out

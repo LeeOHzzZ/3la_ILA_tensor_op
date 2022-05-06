@@ -56,7 +56,7 @@ def test_pooling():
   num_ts = int(sys.argv[4])
 
   test_driver = pooling_layer_driver(mode, num_v_in, num_ts)
-  verbose_analysis = 0
+  verbose_analysis = True
   test_driver.run_test(verbose_analysis)
   test_driver.clean_up()
 

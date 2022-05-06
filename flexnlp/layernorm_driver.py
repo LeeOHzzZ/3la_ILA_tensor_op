@@ -8,6 +8,9 @@ from src.utils import tool
 from src.converter import Converter as cvtr
 
 class layernorm_driver:
+  ADPFLOAT_OFFSET = 10
+  ADPTBIAS = None
+
   def __init__(self, num_v, num_ts):
     """
     for layernorm, num_v_in == num_v_out
@@ -55,13 +58,13 @@ class layernorm_driver:
     """
     produce data_lib for layernorm
     """
-    inp_q, bias_inp = self.tl.get_adpfloat_bias(self.inp)
-    beta_q, bias_beta = self.tl.get_adpfloat_bias(self.beta)
-    gamma_q, bias_gamma = self.tl.get_adpfloat_bias(self.gamma)
+    inp_q, bias_inp = self.tl.get_adpfloat_bias(self.inp, self.ADPTBIAS)
+    beta_q, bias_beta = self.tl.get_adpfloat_bias(self.beta, self.ADPTBIAS)
+    gamma_q, bias_gamma = self.tl.get_adpfloat_bias(self.gamma, self.ADPTBIAS)
     
-    self.adpbias_inp = int(bias_inp + 10)
-    self.adpbias_beta = int(bias_beta + 10)
-    self.adpbias_gamma = int(bias_gamma + 10)
+    self.adpbias_inp = int(bias_inp + self.ADPFLOAT_OFFSET)
+    self.adpbias_beta = int(bias_beta + self.ADPFLOAT_OFFSET)
+    self.adpbias_gamma = int(bias_gamma + self.ADPFLOAT_OFFSET)
 
        
     param = {
