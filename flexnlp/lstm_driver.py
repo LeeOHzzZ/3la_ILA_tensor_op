@@ -18,6 +18,8 @@ class lstm_layer_driver:
   """
   # ADPTBIAS = -10
   ADPTBIAS = None
+  ADPTFLOAT_N_BITS = 8
+  ADPTFLOAT_N_EXP = 3
 
   def __init__(self, num_v_in, num_v_out, num_ts, is_bias, is_zero_first, name=''):
     self.num_v_in = num_v_in
@@ -136,7 +138,7 @@ class lstm_layer_driver:
     assert len(wgt_h_shape) == 2
     wgt_h_flatten = self.wgt_h.reshape((wgt_h_shape[0] * wgt_h_shape[1],))
     wgt_all = np.concatenate((wgt_i_flatten, wgt_h_flatten), axis=0)
-    wgt_all_q, adpbias_wgt = self.tl.get_adpfloat_bias(wgt_all, self.ADPTBIAS)
+    wgt_all_q, adpbias_wgt = self.tl.get_adpfloat_bias(wgt_all, self.ADPTFLOAT_N_BITS, self.ADPTFLOAT_N_EXP, self.ADPTBIAS)
     wgt_i_q = wgt_all_q[0 : wgt_i_shape[0]*wgt_i_shape[1],].reshape(
       (wgt_i_shape[0], wgt_i_shape[1])
     )
@@ -145,9 +147,9 @@ class lstm_layer_driver:
     )
     
 
-    inp_q, adpbias_inp = self.tl.get_adpfloat_bias(self.inp, self.ADPTBIAS)
-    bias_i_q, adpbias_b_i = self.tl.get_adpfloat_bias(self.bias_i, self.ADPTBIAS)
-    bias_h_q, adpbias_b_h = self.tl.get_adpfloat_bias(self.bias_h, self.ADPTBIAS)
+    inp_q, adpbias_inp = self.tl.get_adpfloat_bias(self.inp, self.ADPTFLOAT_N_BITS, self.ADPTFLOAT_N_EXP, self.ADPTBIAS)
+    bias_i_q, adpbias_b_i = self.tl.get_adpfloat_bias(self.bias_i, self.ADPTFLOAT_N_BITS, self.ADPTFLOAT_N_EXP, self.ADPTBIAS)
+    bias_h_q, adpbias_b_h = self.tl.get_adpfloat_bias(self.bias_h, self.ADPTFLOAT_N_BITS, self.ADPTFLOAT_N_EXP, self.ADPTBIAS)
 
     # perform weight tiling
     wgt_i_qt = self.tl.lstm_wgt_tiling(wgt_i_q, self.num_v_in, self.num_v_out)
@@ -526,7 +528,7 @@ class lstm_layer_driver:
       if is_verbose:
         print(f"ref cell state: {self.ref_cell_state}")
         print(f"result: {self.cell_state_out}")
-        print(f"quantized ref:", self.tl.get_adpfloat_bias(self.ref_cell_state, self.ADPTBIAS))
+        print(f"quantized ref:", self.tl.get_adpfloat_bias(self.ref_cell_state, self.ADPTFLOAT_N_BITS, self.ADPTFLOAT_N_EXP, self.ADPTBIAS))
         print(f"diff: {self.ref_cell_state - self.cell_state_out}")
 
     return err_out_list, ts_stdd_list

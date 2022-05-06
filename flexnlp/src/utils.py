@@ -64,11 +64,11 @@ class tool:
     return mean, stdd
 
 
-  def get_adpfloat_bias(self, array, bias=None):
+  def get_adpfloat_bias(self, array, n_bits=8, n_exp=3, bias=None):
     """
     return the quantized matrix and adpfloat bias
     """
-    return quantize_floatext(array, bias=bias)
+    return quantize_floatext(array, n_bits=n_bits, n_exp=n_exp, bias=bias)
   
   def get_relay_lstm_ref(self, num_v_in, num_v_out, num_ts,
                          inp, wgt_i, wgt_h, bias_i, bias_h):
