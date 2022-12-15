@@ -276,7 +276,7 @@ class tool:
         for v_idx in range(num_vo // 4):
           addr = (
             FLEXNLP_ADDR_BASE + 
-            pe_idx * FLEXNLP_PE_PARTITION_OFFSET +
+            (pe_idx + 1) * FLEXNLP_PE_PARTITION_OFFSET +
             FLEXNLP_PE_ACT_BUF_BASE +
             v_idx * 0x010
           )

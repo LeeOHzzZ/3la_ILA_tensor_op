@@ -32,7 +32,7 @@ class lstm_layer_driver(FlexASRBaseDriver):
   # ----------------------------
   # producing lstm tensor asm
   # ----------------------------
-  def produce_lstm_asm(self):
+  def produce_lstm_asm(self, write_only=False):
     ila_asm = []
     ila_asm.append({
       'name' : 'store_wgt_i',
@@ -58,26 +58,39 @@ class lstm_layer_driver(FlexASRBaseDriver):
         'idx' : i
       })
     
+    if not self.is_zero_first:
+      ila_asm.append({
+        "name" : "store_lstm_cell_state",
+        "cell_state_var" : "ci",
+      })
+
+      ila_asm.append({
+        "name" : "store_lstm_hidden_state",
+        "hidden_state_var" : "hi",
+      })
+    
     ila_asm.append({
       'name' : 'lstm_layer',
       'num_ts' : self.num_ts,
       'is_bias' : self.is_bias,
       'is_zero_first' : self.is_zero_first
     })
-    ila_asm.append({
-      'name' : 'wait_irq'
-    })
-    for i in range(self.num_ts):
+
+    if not write_only:
       ila_asm.append({
-        'name' : 'load_act',
-        'mem_idx' : 1,
-        'ts_idx' : i
+        'name' : 'wait_irq'
       })
-    # reading LSTM cell state from the pe_act_buffer
-    ila_asm.append({
-      "name" : "load_lstm_cell_state",
-      "idx" : 0,
-    })
+      for i in range(self.num_ts):
+        ila_asm.append({
+          'name' : 'load_act',
+          'mem_idx' : 1,
+          'ts_idx' : i
+        })
+      # reading LSTM cell state from the pe_act_buffer
+      ila_asm.append({
+        "name" : "load_lstm_cell_state",
+        "idx" : 0,
+      })
 
     ila_asm = {'asm': ila_asm}
     self.ts_asm_lib = ila_asm
@@ -123,8 +136,15 @@ class lstm_layer_driver(FlexASRBaseDriver):
     if self.is_zero_first:
       self.cell_state_init = np.zeros((16*self.num_v_out))
       self.hidden_state_init = np.zeros((16*self.num_v_out))
+    else:
+      cell_state_path = "./data/lstm_cell_state_in.txt"
+      print("collecting lstm cell state from ", cell_state_path)
+      self.cell_state_init = np.fromfile(cell_state_path, sep = "\n")
+      hidden_state_path = "./data/lstm_hidden_state_in.txt"
+      print("collecting lstm hidden state from ", hidden_state_path)
+      self.hidden_state_init = np.fromfile(hidden_state_path, sep = "\n")
 
-  def produce_lstm_data_lib(self):
+  def produce_lstm_data_lib(self, is_zero_first=True):
     """
     get quantized inputs, weights and bias
     """
@@ -149,6 +169,8 @@ class lstm_layer_driver(FlexASRBaseDriver):
     inp_q, adpbias_inp = self.tl.get_adpfloat_bias(self.inp, self.ADPTFLOAT_N_BITS, self.ADPTFLOAT_N_EXP, self.ADPTBIAS)
     bias_i_q, adpbias_b_i = self.tl.get_adpfloat_bias(self.bias_i, self.ADPTFLOAT_N_BITS, self.ADPTFLOAT_N_EXP, self.ADPTBIAS)
     bias_h_q, adpbias_b_h = self.tl.get_adpfloat_bias(self.bias_h, self.ADPTFLOAT_N_BITS, self.ADPTFLOAT_N_EXP, self.ADPTBIAS)
+    cell_state_q, _ = self.tl.get_adpfloat_bias(self.cell_state_init, self.ADPTFLOAT_N_BITS, self.ADPTFLOAT_N_EXP, self.ADPTBIAS)
+    hidden_state_q, _ = self.tl.get_adpfloat_bias(self.hidden_state_init, self.ADPTFLOAT_N_BITS, self.ADPTFLOAT_N_EXP, self.ADPTBIAS)
 
     # perform weight tiling
     wgt_i_qt = self.tl.lstm_wgt_tiling(wgt_i_q, self.num_v_in, self.num_v_out)
@@ -159,18 +181,14 @@ class lstm_layer_driver(FlexASRBaseDriver):
     bias_h_qr = self.tl.lstm_bias_reshape(bias_h_q, self.num_v_out)
     print('*** performed bias reshape for PEs ***')
     
-    # these adpbias are very likely to be the same
-    # assert adpbias_wgt_i == adpbias_wgt_h, \
-    #   'adpbias_wgt_i({}) != adpbias_wgt_h({})'.format(adpbias_wgt_i, adpbias_wgt_h)
-    # assert adpbias_b_i == adpbias_b_h, \
-    #   'adpbias_b_i({}) != adpbias_b_h({})'.format(adpbias_b_i, adpbias_b_h)
-    # self.bias_wgt = int(adpbias_wgt_i + 10)
     self.bias_wgt = int(adpbias_wgt + self.ADPTFLOAT_OFFSET)
     self.bias_inp = int(adpbias_inp + self.ADPTFLOAT_OFFSET)
     self.bias_b = int(adpbias_b_i + self.ADPTFLOAT_OFFSET)
     # self.bias_act = 2 # this is an empirical value
     self.bias_act = int(adpbias_inp + self.ADPTFLOAT_OFFSET)
     print((self.bias_wgt, self.bias_inp, self.bias_b, self.bias_act))
+
+
     """
     init data_lib param
     """
@@ -185,7 +203,7 @@ class lstm_layer_driver(FlexASRBaseDriver):
       'wh_num_tile' : int(4 * self.num_v_out * self.num_v_out)
     }
 
-    self.data_lib_to_adpfloat(wgt_i_qt, wgt_h_qt, inp_q, bias_i_qr, bias_h_qr)
+    self.data_lib_to_adpfloat(wgt_i_qt, wgt_h_qt, inp_q, bias_i_qr, bias_h_qr, cell_state_q, hidden_state_q)
     self.gen_data_lib_helper(param, './test/lstm_data_lib.json')
 
     """
@@ -199,7 +217,7 @@ class lstm_layer_driver(FlexASRBaseDriver):
     # self.bias_h = bias_h_q
 
 
-  def data_lib_to_adpfloat(self, wgt_i, wgt_h, inp, bias_i, bias_h):
+  def data_lib_to_adpfloat(self, wgt_i, wgt_h, inp, bias_i, bias_h, cell_state_q, hidden_state_q):
     print('\n--------------------------------------------------------------')
     print('\tinvoking float to adpfloat converter')
     print('--------------------------------------------------------------\n')
@@ -214,6 +232,11 @@ class lstm_layer_driver(FlexASRBaseDriver):
     self.tl.call_float_adpt_v_cvtr('./test/bias_i_qr.tmp', self.bias_b, './test/bias_i_qr_av.tmp')
     bias_h.tofile('./test/bias_h_qr.tmp', sep = '\n')
     self.tl.call_float_adpt_v_cvtr('./test/bias_h_qr.tmp', self.bias_b, './test/bias_h_qr_av.tmp')
+    
+    cell_state_q.tofile("./test/cell_state_qt.tmp", sep = "\n")
+    self.tl.call_float_adpt_v_cvtr('./test/cell_state_qt.tmp', self.bias_inp, './test/cell_state_qt_av.tmp')
+    hidden_state_q.tofile("./test/hidden_state_qt.tmp", sep = "\n")
+    self.tl.call_float_adpt_v_cvtr('./test/hidden_state_qt.tmp', self.bias_inp, './test/hidden_state_qt_av.tmp')
     
 
   def gen_data_lib_helper(self, param, out_path):
@@ -258,6 +281,19 @@ class lstm_layer_driver(FlexASRBaseDriver):
     assert len(bias_h_v_list) == 4 * self.num_v_out
     self.data_lib = \
       self.tl.vector_to_data_lib(bias_h_v_list, 'bh', 4*self.num_v_out, self.data_lib)
+
+    with open("./test/cell_state_qt_av.tmp", "r") as fin:
+      cell_state_v_list = fin.read().splitlines()
+    assert len(cell_state_v_list) == self.num_v_out
+    self.data_lib = \
+      self.tl.vector_to_data_lib(cell_state_v_list, "ci", self.num_v_out, self.data_lib)
+    
+    with open("./test/hidden_state_qt_av.tmp", "r") as fin:
+      hidden_state_v_list = fin.read().splitlines()
+    assert len(hidden_state_v_list) == self.num_v_out
+    self.data_lib = \
+      self.tl.vector_to_data_lib(cell_state_v_list, "hi", self.num_v_out, self.data_lib)
+
     
     with open(out_path, 'w') as fout:
       json.dump(self.data_lib, fout, indent=4)
@@ -304,14 +340,14 @@ class lstm_layer_driver(FlexASRBaseDriver):
   # --------------------------------------
   # invoke FPGA simulation
   # --------------------------------------
-  def gen_axi_cmds(self, base_addr = '0x33000000'):
+  def gen_axi_cmds(self, base_addr = '0x33000000', fname = './test/lstm_axi_cmd.csv'):
     print('\n--------------------------------------------------------------')
     print('\tgenerate axi commands for FlexNLP')
     print('--------------------------------------------------------------\n')
     if not self.ila_cvtr:
       self.ila_cvtr = cvtr('./test/lstm_asm.json', './test/lstm_data_lib.json')
-    self.ila_cvtr.dump_axi_cmds('./test/lstm_axi_cmd.csv', base_addr, op_name=self.op_name)
-    print('*** axi commands has been dumped to ./test/lstm_axi_cmd.csv ***')
+    self.ila_cvtr.dump_axi_cmds(fname, base_addr, op_name=self.op_name)
+    print(f'*** axi commands has been dumped to {fname} ***')
 
   def collect_fpga_results(self, base_addr = '0xA0500000'):
     """

@@ -33,7 +33,7 @@ class linear_layer_driver(FlexASRBaseDriver):
     self.ref_run = ref_run
 
 
-  def produce_ly_asm(self):
+  def produce_ly_asm(self, write_only=False):
     ila_asm = []
     ila_asm.append({
       'name' : 'store_wgt',
@@ -54,15 +54,17 @@ class linear_layer_driver(FlexASRBaseDriver):
       'num_ts' : self.num_ts,
       'is_bias' : self.is_bias
     })
-    ila_asm.append({
-      'name' : 'wait_irq'
-    })
-    for i in range(self.num_ts):
+
+    if not write_only:
       ila_asm.append({
-        'name' : 'load_act',
-        'mem_idx' : 1,
-        'ts_idx' : i
+        'name' : 'wait_irq'
       })
+      for i in range(self.num_ts):
+        ila_asm.append({
+          'name' : 'load_act',
+          'mem_idx' : 1,
+          'ts_idx' : i
+        })
     
     ila_asm = {'asm': ila_asm}
     self.ts_asm_lib = ila_asm
@@ -247,11 +249,11 @@ class linear_layer_driver(FlexASRBaseDriver):
     print('\n\t*** data_lib has been dump to {}***\n'.format(out_path))
     
     
-  def produce_linear_layer_test(self):
+  def produce_linear_layer_test(self, write_only=False):
     self.produce_random_test_data()
     self.produce_ref_result()
     self.produce_ly_data_lib()
-    self.produce_ly_asm()
+    self.produce_ly_asm(write_only)
   
   # -----------------------------------------
   # invoke ILA simulation
@@ -305,7 +307,7 @@ class linear_layer_driver(FlexASRBaseDriver):
   # --------------------------------------
   # invoke FPGA simulation
   # --------------------------------------
-  def gen_axi_cmds(self, base_addr = '0x33000000'):
+  def gen_axi_cmds(self, base_addr = '0x33000000', fname = './test/ly_axi_cmd.csv'):
     """
     dump FPGA axi commands and simulatino c script
     the default address here is 0x33000000 is for running flexnlp systemc simulation
@@ -315,8 +317,8 @@ class linear_layer_driver(FlexASRBaseDriver):
     print('--------------------------------------------------------------\n')
     if not self.ila_cvtr:
       self.ila_cvtr = cvtr('./test/ly_asm.json', './test/ly_data_lib.json')
-    self.ila_cvtr.dump_axi_cmds('./test/ly_axi_cmd.csv', base_addr, op_name=self.op_name)
-    print('*** axi commands has been dumped to ./test/ly_axi_cmd.csv ***')
+    self.ila_cvtr.dump_axi_cmds(fname, base_addr, op_name=self.op_name)
+    print(f'*** axi commands has been dumped to {fname} ***')
 
 
   def collect_fpga_results(self, base_addr = '0xA0500000'):

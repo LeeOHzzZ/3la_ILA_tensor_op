@@ -89,6 +89,7 @@ class ts_asm_converter:
     asm_types = ['store_act', 'store_wgt', 'store_bias', 'load_act', 'load_lstm_cell_state']
     asm_types += ['store_wgt_i', 'store_wgt_h', 'store_bias_i', 'store_bias_h']
     asm_types += ['store_beta', 'store_gamma', 'store_dec']
+    asm_types += ["store_lstm_hidden_state", "store_lstm_cell_state"]
     asm_types += ['maxp', 'meanp','linear_layer', 'lstm_layer', 'layernorm', 'attention']
     # this instruction added for simulation
     asm_types += ['wait_irq']
@@ -120,6 +121,10 @@ class ts_asm_converter:
       return self.gen_store_gamma(asm)
     if asm['name'] == 'store_dec':
       return self.gen_store_dec(asm)
+    if asm["name"] == "store_lstm_hidden_state":
+      return self.gen_store_lstm_hidden_state(asm)
+    if asm["name"] == "store_lstm_cell_state":
+      return self.gen_store_lstm_cell_state(asm)
 
     if asm['name'] in ('maxp', 'meanp'):
       return self.gen_pooling(asm)
@@ -253,7 +258,7 @@ class ts_asm_converter:
       for v_idx in range(num_v_out // 4):
         addr = (
           self.__FLEXNLP_ADDR_BASE + 
-          pe_idx * self.__FLEXNLP_PE_PARTITION_OFFSET +
+          (pe_idx + 1) * self.__FLEXNLP_PE_PARTITION_OFFSET +
           self.__FLEXNLP_PE_ACT_BUF_BASE + 
           v_idx * 0x010
         )
@@ -265,7 +270,61 @@ class ts_asm_converter:
           "addr" : hex(addr),
         })
     return ret
+  
 
+  def gen_store_lstm_cell_state(self, asm):
+    # format: store_lstm_cell_state [cell_state_var]
+    #   [cell_state_var]: string, cell state variable name
+    # description:
+    #   store LSTM cell state in the pe_act buffer
+    num_v_out = self.data_lib["gb_num_vector_out"]
+    assert num_v_out % 4 == 0, (
+      "Current LSTM codegen only support output vector number to be integer multiple of 4"
+    )
+    ret = []
+    for pe_idx in range(4):
+      for v_idx in range(num_v_out // 4):
+        addr = (
+          self.__FLEXNLP_ADDR_BASE + 
+          (pe_idx + 1) * self.__FLEXNLP_PE_PARTITION_OFFSET +
+          self.__FLEXNLP_PE_ACT_BUF_BASE + 
+          v_idx * 0x010
+        )
+        assert self.__FLEXNLP_PE_ACT_BUF_BASE+v_idx*0x010 <= self.__FLEXNLP_PE_ACT_BUF_BOUND, (
+          f"lstm cell state address is out of bound -- {addr}"
+        )
+        ret.append({
+          'name' : 'write_v',
+          'vector_name' : f"{asm['cell_state_var']}.{pe_idx*(num_v_out // 4) + v_idx}",
+          'addr' : hex(addr),
+        })
+    return ret
+
+  def gen_store_lstm_hidden_state(self, asm):
+    # format: store_lstm_hidden_state [hidden_state_var]
+    #   [hidden_state_var]: string, hidden state variable name
+    # description:
+    #   store hidden state into pe_core input buffer
+    num_v_in = self.data_lib["gb_num_vector_in"]
+    num_v_out = self.data_lib["gb_num_vector_out"]
+    assert num_v_out % 4 == 0, (
+      "Current LSTM codegen only support output vector number to be integer multiple of 4"
+    )
+    ret = []
+
+    for pe_idx in range(4):
+      for v_idx in range(num_v_out):
+        addr = (
+          self.__FLEXNLP_ADDR_BASE + 0x01600000 + pe_idx*0x01000000 +
+          self.get_pe_base_h_input(num_v_in, num_v_out)*0x10 + v_idx*0x10
+        )
+        ret.append({
+          "name" : "write_v",
+          "vector_name" : f"{asm['hidden_state_var']}.{v_idx}",
+          "addr" : hex(addr),
+        })
+    
+    return ret
 
   def gen_store_wgt_i(self, asm):
     # format: store_wgt_i [wgt_idx]
