@@ -41,3 +41,9 @@ vta/__pycache__/*
 # Intermediate files
 *.swp
 *.pyc
+
+# test dump files
+*.json
+*.log
+*.txt
+*.csv
