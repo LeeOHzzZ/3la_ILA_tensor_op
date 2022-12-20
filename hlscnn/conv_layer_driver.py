@@ -22,8 +22,8 @@ from tvm.contrib import graph_executor
 class conv_layer_driver:
   __VIR_MEM_BASE_ADDR = 0x0
   __SPAD0_BASE_ADDR = 0x04000
-  # __SPAD1_BASE_ADDR = 0X24000
-  __SPAD1_BASE_ADDR = 0x800000
+  __SPAD1_BASE_ADDR = 0X24000
+  # __SPAD1_BASE_ADDR = 0x800000
 
   __CHANNEL_BLOCK_SIZE = 8
 
@@ -54,60 +54,95 @@ class conv_layer_driver:
       if os.getenv("HLSCNN_USE_16_WGT") is not None:
         self.wgt_bitwidth = 16
 
+  def produce_vir_mem_wr_asm_wgt(self, soc_base_addr):
+    """ write weights into the virtual memory """
+    for i, data in enumerate(self.wgt_mem):
+      self.ila_asm.append({
+        'name' : 'VirMemWr',
+        'addr' : hex(self.__VIR_MEM_BASE_ADDR + soc_base_addr + i*0x10),
+        'data' : data
+      })
+  
+  def produce_vir_mem_wr_asm_act(self, soc_base_addr):
+    """ write activations into the virtual memory """
+    for i, data in enumerate(self.act_mem):
+      self.ila_asm.append({
+        'name' : 'VirMemWr',
+        'addr' : hex(self.__VIR_MEM_BASE_ADDR + soc_base_addr + i*0x10),
+        'data' : data
+      })
   
   def produce_vir_mem_wr_asm(self):
     """
     this function produce vir_mem_wr asm for transferring weights and activations
     """
-    for i, data in enumerate(self.act_mem):
-      self.ila_asm.append({
-        'name' : 'VirMemWr',
-        'addr' : hex(self.__VIR_MEM_BASE_ADDR + i*0x10),
-        'data' : data
-      })
-
-    for i, data in enumerate(self.wgt_mem):
-      self.ila_asm.append({
-        'name' : 'VirMemWr',
-        'addr' : hex(self.__VIR_MEM_BASE_ADDR + self.conv_wgt_soc_offset + i*0x10),
-        'data' : data
-      })
+    self.produce_vir_mem_wr_asm_wgt(self.conv_act_soc_offset)
+    self.produce_vir_mem_wr_asm_act(self.conv_wgt_soc_offset)
   
-  def produce_spad_wr_asm(self):
-    """
-    this function produce spad_wr asm for writing the weight data into spad
+  def produce_spad_wr_asm_wgt(self, length, soc_base_addr, spad_base_addr):
+    """ SPAD write for weights
     """
     # Warning: this may not work for HLSCNN systemc simulation when RdWrLen is larger than 1
     # Warning: If to run hlscnn systemc simulation, we have to write to spad1 to initialize it to 0
     self.ila_asm.append({
       'name' : 'CfgSoCMemRdWrLen',
-      'length' : len(self.wgt_mem)
+      'length' : length,
     })
     # assume weight data starts from 0x0 in the SoC Memory (0x50000 for VirMem)
     self.ila_asm.append({
       'name' : 'CfgSoCMemBaseAddr',
-      'base_addr' : hex(self.conv_wgt_soc_offset)
+      'base_addr' : hex(soc_base_addr),
     })
     self.ila_asm.append({
       'name' : 'SpadWr',
-      'addr' : hex(self.__SPAD0_BASE_ADDR)
+      'addr' : hex(spad_base_addr),
+    })
+  
+  def produce_spad_wr_asm_act(self, length, soc_base_addr, spad_base_addr):
+    """ SPAD write for activations
+    """
+    self.ila_asm.append({
+      "name": "CfgSoCMemRdWrLen",
+      "length": length,
+    })
+    self.ila_asm.append({
+      "name": "CfgSoCMemBaseAddr",
+      "base_addr": hex(soc_base_addr),
+    })
+    self.ila_asm.append({
+      "name": "SpadWr",
+      "addr": hex(spad_base_addr),
     })
 
-  def produce_conv_layer_asm(self):
+  def produce_spad_wr_asm(self):
+    """
+    this function produce spad_wr asm for writing the weight data into spad
+    """
+    self.produce_spad_wr_asm_wgt(
+      len(self.wgt_mem), self.conv_wgt_soc_offset, self.__SPAD0_BASE_ADDR
+    )
+    self.produce_spad_wr_asm_act(
+      len(self.act_mem), self.conv_act_soc_offset, self.__SPAD1_BASE_ADDR
+    )
+
+  def produce_conv_layer_asm(self, base_addr_wgt, base_addr_inp, base_addr_out):
     """
     this three base address of HLSCNN are set as fixed value for now
     """
     self.ila_asm.append({
       'name' : 'CfgConvActBaseAddr',
-      'base_addr' : hex(0x0)
+      'base_addr' : hex(base_addr_inp)
     })
     self.ila_asm.append({
       'name' : 'CfgConvWgtBaseAddr',
-      'base_addr' : hex(self.__SPAD0_BASE_ADDR)
+      'base_addr' : hex(base_addr_wgt)
     })
+
+    # since both input and output activations are sharing the spad1,
+    # need to set the output base address considering the input activation size
     self.ila_asm.append({
       'name' : 'CfgConvOutBaseAddr',
-      'base_addr' : hex(self.__SPAD1_BASE_ADDR)
+      'base_addr' : hex(base_addr_out)
     })
     """
     Conv layer parameters
@@ -144,7 +179,7 @@ class conv_layer_driver:
       'name' : 'ConvStart'
     })
   
-  def produce_read_asm(self):
+  def produce_read_asm(self, base_addr_out):
     """
     produce asm for reading data from HLSCNN
     """
@@ -158,7 +193,7 @@ class conv_layer_driver:
       for i in range(self.out_rows):
         for j in range(self.out_cols):
           spad_addr_v = chan_blk*self.out_rows*self.out_cols + i*self.out_cols + j
-          spad_addr = spad_addr_v * 0x10 + self.__SPAD1_BASE_ADDR
+          spad_addr = spad_addr_v * 0x10 + base_addr_out
           # append the read instructions
           self.ila_asm.append({
             'name' : 'SpadRd',
@@ -177,8 +212,12 @@ class conv_layer_driver:
   def produce_asm_all(self):
     self.produce_vir_mem_wr_asm()
     self.produce_spad_wr_asm()
-    self.produce_conv_layer_asm()
-    self.produce_read_asm()
+    self.produce_conv_layer_asm(
+      base_addr_wgt=self.__SPAD0_BASE_ADDR,
+      base_addr_inp=self.__SPAD1_BASE_ADDR,
+      base_addr_out=self.__SPAD1_BASE_ADDR + len(self.act_mem) * 0x10,
+    )
+    self.produce_read_asm(base_addr_out=self.__SPAD1_BASE_ADDR + len(self.act_mem) * 0x10)
 
     self.ila_asm = {'asm' : self.ila_asm}
     
@@ -194,23 +233,23 @@ class conv_layer_driver:
     print('\n--------------------------------------------------------------')
     print('\tcollecting input data')
     print('--------------------------------------------------------------\n')
-    if os.getenv("HLSCNN_FOR_MOBILENET") is not None:
+    # if os.getenv("HLSCNN_FOR_MOBILENET") is not None:
       # special debugging for mobilenet
-      print(f"[HLSCNN] packing data for HLSCNN specially for MobileNetV2")
-      assert self.wgt_bitwidth == 16, "HLSCNN_USE_16_WGT not set yet"
-      cmd = [
-        'hlscnn_pack_data_mobilenet',
-        str(self.inp_rows), str(self.inp_cols), str(self.inp_chans),
-        str(self.kernel_rows), str(self.kernel_cols), str(self.k_num),
-        str(self.wgt_bitwidth)
-      ]
-    else:
-      cmd = [
-        'hlscnn_pack_data',
-        str(self.inp_rows), str(self.inp_cols), str(self.inp_chans),
-        str(self.kernel_rows), str(self.kernel_cols), str(self.k_num),
-        str(self.wgt_bitwidth)
-      ]
+    print(f"[HLSCNN] packing data for HLSCNN specially for MobileNetV2")
+    assert self.wgt_bitwidth == 16, "HLSCNN_USE_16_WGT not set yet"
+    cmd = [
+      'hlscnn_pack_data_mobilenet',
+      str(self.inp_rows), str(self.inp_cols), str(self.inp_chans),
+      str(self.kernel_rows), str(self.kernel_cols), str(self.k_num),
+      str(self.wgt_bitwidth)
+    ]
+    # else:
+    #   cmd = [
+    #     'hlscnn_pack_data',
+    #     str(self.inp_rows), str(self.inp_cols), str(self.inp_chans),
+    #     str(self.kernel_rows), str(self.kernel_cols), str(self.k_num),
+    #     str(self.wgt_bitwidth)
+    #   ]
     subprocess.run(cmd)
 
     with open('./data/packed_conv_act.json', 'r') as fin:
@@ -219,7 +258,10 @@ class conv_layer_driver:
       self.wgt_mem = json.load(fin)
 
     # self.conv_act_offset = (len(self.wgt_mem) + 1) * 0x10
-    self.conv_wgt_soc_offset = int(len(self.act_mem)/16 + 1) * 16 * 0x10
+    self.conv_act_soc_offset = 0
+    self.conv_wgt_soc_offset = (
+      int(len(self.act_mem)/16 + 1) * 16 * 0x10 + self.conv_act_soc_offset
+    )
 
   def produce_prog_frag(self):
     print('\n--------------------------------------------------------------')
@@ -233,30 +275,36 @@ class conv_layer_driver:
     print('\tinvoking ILA simulator')
     print('--------------------------------------------------------------\n')
     # measure the time of ila simulation
-    if os.getenv("HLSCNN_FOR_MOBILENET") is not None:
-      # special debugging for mobilenet
-      print(f"[HLSCNN] special HLSCNN simulator for MobileNetV2")
-      cmd = [
-        "hlscnn_asm_sim_driver_wgt_16_mobilenet", 
-        "./test/conv_ila_prog_frag.json",
-        "./test/conv_ila_out.json",
-      ]
-    else:
-      if self.wgt_bitwidth == 8:
-        print(f"[HLSCNN] using {self.wgt_bitwidth}-bit weights")
-        cmd = [
-          'hlscnn_asm_sim_driver', 
-          './test/conv_ila_prog_frag.json', 
-          './test/conv_ila_out.json'
-        ]
-      else:
-        assert self.wgt_bitwidth == 16, f"wrong weight_bitwidth size {self.wgt_bitwidth}"
-        print(f"[HLSCNN] using {self.wgt_bitwidth}-bit weights")
-        cmd = [
-          "hlscnn_asm_sim_driver_wgt_16", 
-          "./test/conv_ila_prog_frag.json",
-          "./test/conv_ila_out.json",
-        ]
+    print("Calling special hlscnn-ila simulator with unified activation spad")
+    cmd = [
+      "hlscnn_asm_sim_driver_unified_spad",
+      "./test/conv_ila_prog_frag.json",
+      "./test/conv_ila_out.json",
+    ]
+    # if os.getenv("HLSCNN_FOR_MOBILENET") is not None:
+    #   # special debugging for mobilenet
+    #   print(f"[HLSCNN] special HLSCNN simulator for MobileNetV2")
+    #   cmd = [
+    #     "hlscnn_asm_sim_driver_wgt_16_mobilenet", 
+    #     "./test/conv_ila_prog_frag.json",
+    #     "./test/conv_ila_out.json",
+    #   ]
+    # else:
+    #   if self.wgt_bitwidth == 8:
+    #     print(f"[HLSCNN] using {self.wgt_bitwidth}-bit weights")
+    #     cmd = [
+    #       'hlscnn_asm_sim_driver', 
+    #       './test/conv_ila_prog_frag.json', 
+    #       './test/conv_ila_out.json'
+    #     ]
+    #   else:
+    #     assert self.wgt_bitwidth == 16, f"wrong weight_bitwidth size {self.wgt_bitwidth}"
+    #     print(f"[HLSCNN] using {self.wgt_bitwidth}-bit weights")
+    #     cmd = [
+    #       "hlscnn_asm_sim_driver_wgt_16", 
+    #       "./test/conv_ila_prog_frag.json",
+    #       "./test/conv_ila_out.json",
+    #     ]
     start_time = timeit.default_timer()
     subprocess.run(cmd)
     end_time = timeit.default_timer()

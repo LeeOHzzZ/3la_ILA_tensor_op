@@ -76,7 +76,7 @@ class asm_prog_frag_converter:
   def __gen_spad_write(self, asm):
     # assembly: SpadWr [addr]
     # [addr]: hex string of SPAD address to write
-    # SPAD0 address: 0x04000 ~ 0x24000 (20KB)
+    # SPAD0 address: 0x04000 ~ 0x24000
     # SPAD1 address: 0x24000 ~ 0x44000
     return self.__produce_insn(asm['addr'], '0x0', 'W')
   
