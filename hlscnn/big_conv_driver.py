@@ -99,6 +99,10 @@ class Conv2DScheduler:
     SPAD0_BASE_ADDR = 0x04000
     SPAD1_BASE_ADDR = SPAD0_BASE_ADDR + SPAD_SIZE
 
+    # related dims to different value
+    WGT_DIMS = ("c", "k")
+    INP_DIMS = ("c", "h", "w")
+
     def __init__(self, layer_info, schedule):
         (
             self.in_chans,
@@ -119,8 +123,8 @@ class Conv2DScheduler:
         self.out_h = floor((self.in_h - self.k_h) / self.stride + 1)
         self.out_w = floor((self.in_w - self.k_w) / self.stride + 1)
 
-        self.tile_ih = (self.out_h - 1) * self.stride + self.k_h
-        self.tile_iw = (self.out_w - 1) * self.stride + self.k_w
+        self.tile_ih = (self.tile_oh - 1) * self.stride + self.k_h
+        self.tile_iw = (self.tile_ow - 1) * self.stride + self.k_w
 
         self.num_tc = ceil(self.in_chans / self.tile_c)
         self.num_tk = ceil(self.out_chans / self.tile_k)
@@ -141,11 +145,36 @@ class Conv2DScheduler:
         # assert self.out_h == self.tile_oh
         # assert self.out_w == self.tile_ow
 
+    @staticmethod
+    def start_simulator():
+        # start the hlscnn-ilator simulation
+        print("Starting hlscnn-ilator simulator!")
+        cmd = [
+            "hlscnn_asm_sim_driver_server",
+            "./test/conv_ila_prog_frag.json",
+            "./test/conv_ila_out.json",
+        ]
+        subprocess.Popen(cmd)  # non-blocking subprocess
+
+    @staticmethod
+    def stop_simulator():
+        # send stop signal to the simulator
+        print("shutting down hlscnn-ilator simulation")
+        server_fifo = open(SERVER_FIFO, "w")
+        server_fifo.write("stop!")
+        server_fifo.close()
+
+    def _get_tile_encode(self, related_dims, cntr_value):
+        """This function returns the encoding of the data tile based on current
+        iteration cntr and its relavent dimensions"""
+        re_fn = lambda x: 1 if x in related_dims else 0
+        loop_enc = [re_fn(x) for x in self.loop_order]
+
+        return tuple(map(mul, cntr_value, loop_enc))
+
     def get_tile_order_from_schedule(self):
-        """This function iterate over the given schedule and get the static order of the data tiles"""
-        re_fn = lambda x, dims: 1 if x in dims else 0
-        loop_enc_wgt = [re_fn(x, ("c", "k")) for x in self.loop_order]
-        loop_enc_act = [re_fn(x, ("c", "h", "w")) for x in self.loop_order]
+        """This function iterate over the given schedule and
+        get the static order of the data tiles"""
         # list for holding the tile sequences
         t_wgt_seq = []
         t_act_seq = []
@@ -155,16 +184,17 @@ class Conv2DScheduler:
 
         cntr = LoopCounter(len(self.loop_bounds), self.loop_bounds)
         for i in range(self.total_invokes):
-            it_list = cntr.value
-            t_wgt_id = tuple(map(mul, it_list, loop_enc_wgt))
+            t_wgt_id = self._get_tile_encode(self.WGT_DIMS, cntr.value)
             if t_wgt_id not in t_wgt_log:
                 t_wgt_log.append(t_wgt_id)
             t_wgt_seq.append(t_wgt_log.index(t_wgt_id))
-            t_act_id = tuple(map(mul, it_list, loop_enc_act))
+
+            t_act_id = self._get_tile_encode(self.INP_DIMS, cntr.value)
             if t_act_id not in t_act_log:
                 t_act_log.append(t_act_id)
             t_act_seq.append(t_act_log.index(t_act_id))
             cntr.increment()
+
         assert sum(cntr.value) == 0
         assert len(t_wgt_seq) == self.total_invokes
         assert len(t_act_seq) == self.total_invokes
@@ -172,12 +202,16 @@ class Conv2DScheduler:
         return t_wgt_log, t_wgt_seq, t_act_log, t_act_seq
 
     def get_dim_stride_code(self, loop_order, loop_bounds):
-        """Get the stride encoding of the dimensions"""
+        """Get the stride encoding of the dimensions
+        The starting stride for all dimensions are 1. When encounter a related
+        loop dimension, accumulate the stride by multiplying the previous one
+        by the current loop bound.
+        """
         stride_dict = {"c": 1, "k": 1, "h": 1, "w": 1}
         code = []
         for i, dim in enumerate(reversed(loop_order)):
             code.append(stride_dict[dim])
-            stride_dict[dim] *= loop_bounds[-(i+1)]
+            stride_dict[dim] *= loop_bounds[-(i + 1)]
         return tuple(code[::-1])
 
     def get_dim_tile_idx(self, dim, iter_code, loop_stride_code):
@@ -198,12 +232,113 @@ class Conv2DScheduler:
         idx = sum((map(fn, rev_code, iter_code, loop_stride_code)))
         return idx
 
+    def get_tiled_weight_data(self, weight, tk_idx, tc_idx):
+        """Get the tiled weight data with the given tile index on its dimensions
+        Assume the weight is in (out_chan, in_chan, k_h, k_w) format
+        """
+        # indices of out_chan dimension
+        idx_kl = tk_idx * self.tile_k
+        idx_kh = min(idx_kl + self.tile_k, self.out_chans)
+        # indices of in_chan dimensions
+        idx_cl = tc_idx * self.tile_c
+        idx_ch = min(idx_cl + self.tile_c, self.in_chans)
+
+        return weight[idx_kl:idx_kh, idx_cl:idx_ch, :, :]
+
+    def get_tiled_input_data(self, act, tc_idx, th_idx, tw_idx):
+        """Get the tiled input activation data from the given tile indices along
+        different dimensions.
+        Assume the input data is in (num_batch, in_chan, in_h, in_w) format
+
+        Be aware the difference between output tensor indices and input tensor indices.
+        The input arguments of tile indices are from the output tiles, and we need to use
+        them to infer the input tensor boundaries.
+
+        The higher index is exclusive, following the indexing convension of numpy/python.
+        Since HLSCNN doesn't support padding, the calculating is relatively easy.
+        Calculating the lower index:
+            lower_idx = output_idx * stride
+        Calculating the upper index:
+            upper_idx = kernel_size + (output_idx - 1) * stride
+        """
+        # indices of in_chan dimension
+        idx_cl = tc_idx * self.tile_c
+        idx_ch = min(idx_cl + self.tile_c, self.in_chans)
+
+        # indices of activation height dimension of OUTPUT tensor
+        idx_ohl = th_idx * self.tile_oh
+        idx_ohh = min(idx_ohl + self.tile_oh, self.out_h)
+        # infer the indices of the input tensor
+        idx_ihl = idx_ohl * self.stride
+        idx_ihh = (idx_ohh - 1) * self.stride + self.k_h
+        assert (
+            idx_ihh <= self.in_h
+        ), f"inferred in_h index {idx_ihh} > input dim {self.in_h}"
+
+        # indices of activation width dimension of OUTPUT tensor
+        idx_owl = tw_idx * self.tile_ow
+        idx_owh = min(idx_owl + self.tile_ow, self.out_w)
+        # infer the indices of the input tensor
+        idx_iwl = idx_owl * self.stride
+        idx_iwh = (idx_owh - 1) * self.stride + self.k_w
+        assert (
+            idx_iwh <= self.in_w
+        ), f"inferred in_w index {idx_iwh} > input dim {self.in_w}"
+
+        return act[:, idx_cl:idx_ch, idx_ihl:idx_ihh, idx_iwl:idx_iwh]
+
+    def merge_tiled_result(self, out, tile_out, tk_idx, th_idx, tw_idx):
+        """Merge the tiled result back to the large result if needed
+        Assume the output format is (N, out_chan, out_h, out_w)
+        """
+        # indices of out_chan dimension
+        idx_kl = tk_idx * self.tile_k
+        idx_kh = min(idx_kl + self.tile_k, self.out_chans)
+        # indices of activation height dimension of OUTPUT tensor
+        idx_ohl = th_idx * self.tile_oh
+        idx_ohh = min(idx_ohl + self.tile_oh, self.out_h)
+        # indices of activation width dimension of OUTPUT tensor
+        idx_owl = tw_idx * self.tile_ow
+        idx_owh = min(idx_owl + self.tile_ow, self.out_w)
+
+        out[:, idx_kl:idx_kh, idx_ohl:idx_ohh, idx_owl:idx_owh] = tile_out
+
+        return out
+
+    def _allocate_tensor(self, book, record, t_idx):
+        """Allocate the tensor into the scrachpad memory
+        book: book keeping of the current scratchpad status
+        record: static information of the future access pattern
+        t_idx: tensor index to be allocated
+
+        return: the index of the allocated slot in the scratchpad
+        """
+        if None in book:
+            idx = book.index(None)
+            book[idx] = t_idx
+            return idx
+        else:
+            next_uses = tuple(
+                map(lambda x: record.index(x) if x in record else len(record), book)
+            )
+            idx = next_uses.index(max(next_uses))
+            book[idx] = t_idx
+            return idx
+
     def run(self, weight, input):
+        """Generate the code and run the simulation with the weight and input activation
+        data.
+        Assume weight is in (out_chan, in_chan, kernel_h, kernel_w) format
+        Assume activation is in (N_batch, in_chan, activation_h, activation_w) format
+        """
         wgt_tile_size = reduce(mul, (self.tile_k, self.tile_c, self.k_h, self.k_w, 2))
         inp_tile_size = reduce(mul, (self.tile_c, self.tile_ih, self.tile_iw, 2))
         out_tile_size = reduce(mul, (self.tile_k, self.tile_oh, self.tile_ow, 2))
         num_wgt_tile_avail = floor(self.SPAD_SIZE / wgt_tile_size)
         num_inp_tile_avail = floor((self.SPAD_SIZE - out_tile_size) / inp_tile_size)
+
+        print("tile sizes: ", wgt_tile_size, inp_tile_size, out_tile_size)
+        print("# of tile avail in spad: ", num_wgt_tile_avail, num_inp_tile_avail)
 
         assert wgt_tile_size % 16 == 0
         assert inp_tile_size % 16 == 0
@@ -218,30 +353,103 @@ class Conv2DScheduler:
         )
         out_tile_addr = inp_tile_addrs[-1] + inp_tile_size
         # bookkeeping of the scratchpads
-        wgt_book = tuple(None for i in range(num_wgt_tile_avail))
-        act_book = tuple(None for i in range(num_inp_tile_avail))
+        wgt_book = [None] * num_wgt_tile_avail
+        act_book = [None] * num_inp_tile_avail
         # get the static access sequence of the tiles
         t_wgt_log, t_wgt_seq, t_act_log, t_act_seq = self.get_tile_order_from_schedule()
+        print(t_wgt_seq, t_act_seq)
         # get the stride encoding of the loops
         stride_code = self.get_dim_stride_code(self.loop_order, self.loop_bounds)
 
         cntr = LoopCounter(len(self.loop_bounds), self.loop_bounds)
 
-        for i in range(self.total_invokes):
+        # create a placeholder for the output tensor
+        res = np.zeros((1, self.out_chans, self.out_h, self.out_w))
+
+        self.start_simulator()
+
+        for _ in range(self.total_invokes):
             th_idx = self.get_dim_tile_idx("h", cntr.value, stride_code)
             tw_idx = self.get_dim_tile_idx("w", cntr.value, stride_code)
             tc_idx = self.get_dim_tile_idx("c", cntr.value, stride_code)
-            tk_dix = self.get_dim_tile_idx("k", cntr.value, stride_code)
+            tk_idx = self.get_dim_tile_idx("k", cntr.value, stride_code)
+
+            print("current cntr:", cntr.cntr)
+
+            # get the data tile indices
+            t_wgt_id = t_wgt_log.index(self._get_tile_encode(self.WGT_DIMS, cntr.value))
+            t_act_id = t_act_log.index(self._get_tile_encode(self.INP_DIMS, cntr.value))
+            print("current tile idx: ", t_wgt_id, t_act_id)
+
+            # determine IO requirements
+            new_wgt = not (t_wgt_id in wgt_book)
+            new_act = not (t_act_id in act_book)
+            read_out = (self.loop_order[-1] is not "c") or (
+                cntr.value[-1] == (self.loop_bounds[-1] - 1)
+            )
+            io_info = (new_wgt, new_act, read_out)
+            # determine the data address
+            if t_wgt_id in wgt_book:
+                wgt_addr = wgt_tile_addrs[wgt_book.index(t_wgt_id)]
+            else:
+                wgt_addr = wgt_tile_addrs[
+                    self._allocate_tensor(wgt_book, t_wgt_seq[cntr.cntr :], t_wgt_id)
+                ]
+            if t_act_id in act_book:
+                inp_addr = inp_tile_addrs[act_book.index(t_act_id)]
+            else:
+                inp_addr = inp_tile_addrs[
+                    self._allocate_tensor(act_book, t_act_seq[cntr.cntr :], t_act_id)
+                ]
+            addr_info = (wgt_addr, inp_addr, out_tile_addr)
+
+            # slice out the data tiles
+            t_wgt = self.get_tiled_weight_data(weight, tk_idx, tc_idx)
+            t_inp = self.get_tiled_input_data(input, tc_idx, th_idx, tw_idx)
+            print(t_wgt.shape)
+            print(t_inp.shape)
+
+            # dump the tiled data to files
+            if io_info[0]:
+                t_wgt.tofile("./data/wgt.txt", sep="\n")
+            if io_info[1]:
+                t_inp.tofile("./data/inp.txt", sep="\n")
+
+            t_out_h = floor((t_inp.shape[2] - self.k_h) / self.stride + 1)
+            t_out_w = floor((t_inp.shape[3] - self.k_w) / self.stride + 1)
+            is_accum = (self.loop_order[-1] is "c") and (cntr.value[-1] > 0)
+            layer_info = {
+                "inp_size": (t_inp.shape[1], t_inp.shape[2], t_inp.shape[3]),
+                "out_size": (t_wgt.shape[0], t_out_h, t_out_w),
+                "kernel_size": (t_wgt.shape[0], t_wgt.shape[1], self.k_h, self.k_w),
+                "stride": (self.stride, self.stride),
+                "is_bias": False,
+                "bias": 0,
+                "is_relu": False,
+                "is_accum": is_accum,
+                "op_name": f"hlscnn-tiled-conv2d-{cntr.cntr}",
+            }
+            print("io_info:", io_info)
+            print("addr_info:", addr_info)
+            print("layer_info:", layer_info)
+
+            # call the code generation for the tile conv2d operator
+            driver = Conv2DDriver(layer_info, addr_info, io_info)
+            tile_result = driver.run()
+
+            # merge the results if needed
+            if read_out:
+                assert tile_result is not None
+                tile_result = np.array(tile_result).reshape(
+                    (1, t_wgt.shape[0], t_out_h, t_out_w)
+                )
+                res = self.merge_tiled_result(res, tile_result, tk_idx, th_idx, tw_idx)
+
             cntr.increment()
-            print(th_idx, tw_idx, tc_idx, tk_dix)
-
-        # for l0 in range(self.tnum_dict[self.loop_order[0]]):
-        #     for l1 in range(self.tnum_dict[self.loop_order[1]]):
-        #         for l2 in range(self.tnum_dict[self.loop_order[2]]):
-        #             for l3 in range(self.tnum_dict[self.loop_order[3]]):
-        #                 it_list = (l0, l1, l2, l3)
-
-        pass
+        
+        self.stop_simulator()
+        
+        return res
 
     def run_test(self, weight, input):
         # step 1: create place holder for the output
@@ -338,27 +546,20 @@ inp_shape = (1, in_chans, in_h, in_w)
 test_wgt = 0.5 * np.random.uniform(-1, 1, wgt_shape).astype("float32")
 test_inp = 0.5 * np.random.uniform(-1, 1, inp_shape).astype("float32")
 
-# test_wgt.tofile("./test/wgt.txt", sep="\n")
-# test_inp.tofile("./test/inp.txt", sep="\n")
-
 layer_info = (in_chans, out_chans, in_h, in_w, k_h, k_w, stride, padding)
-schedule = ("hwck", 8, 8, 15, 15)
+schedule = ("wkhc", 8, 8, 16, 16)
 test_driver = Conv2DScheduler(layer_info, schedule)
-test_driver.run(test_wgt, test_inp)
+res = test_driver.run(test_wgt, test_inp)
 
-# schedule = ("nah", 8, out_chans, 30, 30)
-# test_driver = Conv2DScheduler(layer_info, schedule)
-# res = test_driver.run(test_wgt, test_inp)
+x = relay.Var("x", relay.TensorType(inp_shape))
+y = relay.Var("y", relay.TensorType(wgt_shape))
+conv_func = relay.Function([x, y], relay.nn.conv2d(x, y, strides=(stride, stride)))
+mod = tvm.IRModule()
+mod["main"] = conv_func
+with tvm.transform.PassContext():
+    exe = relay.vm.compile(mod, "llvm")
+    vm = runtime.vm.VirtualMachine(exe, tvm.cpu())
+    args = [test_inp, test_wgt]
+    ret = vm.invoke("main", *args).asnumpy()
 
-# x = relay.Var("x", relay.TensorType(inp_shape))
-# y = relay.Var("y", relay.TensorType(wgt_shape))
-# conv_func = relay.Function([x, y], relay.nn.conv2d(x, y, strides=(stride, stride)))
-# mod = tvm.IRModule()
-# mod["main"] = conv_func
-# with tvm.transform.PassContext():
-#     exe = relay.vm.compile(mod, "llvm")
-#     vm = runtime.vm.VirtualMachine(exe, tvm.cpu())
-#     args = [test_inp, test_wgt]
-#     ret = vm.invoke("main", *args).asnumpy().flatten()
-
-# print(cal_single_tensor_error(res, ret))
+print(f"{cal_single_tensor_error(res, ret):.5%}")
