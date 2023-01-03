@@ -81,7 +81,7 @@ class linear_layer_driver(FlexASRBaseDriver):
     print('\n--------------------------------------------------------------')
     print('\tproducing random input data')
     print('--------------------------------------------------------------\n')
-    coef = 1
+    coef = 0.5
     wgt_init = coef*np.random.uniform(-1, 1, (16*self.num_v_out, 16*self.num_v_in)).astype(np.float32)
     inp_init = coef*np.random.uniform(-1, 1, (self.num_v_in * 16 * self.num_ts)).astype(np.float32)
     print('(wgt, inp) shape is ({},{})'.format(wgt_init.shape, tuple(t/self.num_ts for t in inp_init.shape)))
@@ -96,24 +96,26 @@ class linear_layer_driver(FlexASRBaseDriver):
     self.wgt = wgt_init
     self.inp = inp_init
     self.bias = bias_init
-  
 
-  def collect_data(self):
-    print('\n--------------------------------------------------------------')
-    print('\tcollecting input data')
-    print('--------------------------------------------------------------\n')
-    
+    # dump the test data to files 
+    wgt_init.tofile("./data/wgt.txt", sep="\n")
+    inp_init.tofile("./data/inp.txt", sep="\n")
+    bias_init.tofile("./data/bias.txt", sep="\n")
+  
+  def collect_data_inp(self):
     # collecting input data TODO: replace the file path with correct one
     inp_path = './data/inp.txt'
     print('collecting input from ' + inp_path)
     self.inp = np.fromfile(inp_path, sep = '\n').astype(self.dtype)
-
+  
+  def collect_data_wgt(self):
     # TODO: do we need to transpose the wgt matrix here?
     wgt_path = './data/wgt.txt'
     print('collecting wgt from ' + wgt_path)
     wgt = np.fromfile(wgt_path, sep = '\n').astype(self.dtype)
     self.wgt = wgt.reshape((16*self.num_v_out, 16*self.num_v_in))
-
+  
+  def collect_data_bias(self):
     if self.is_bias == 1:
       bias_path = './data/bias.txt'
       print('collecting bias from ' + bias_path)
@@ -121,6 +123,13 @@ class linear_layer_driver(FlexASRBaseDriver):
     else:
       self.bias = np.zeros(self.num_v_out*16).astype(self.dtype)
 
+  def collect_data(self):
+    print('\n--------------------------------------------------------------')
+    print('\tcollecting input data')
+    print('--------------------------------------------------------------\n')    
+    self.collect_data_inp()
+    self.collect_data_wgt()
+    self.collect_data_bias()
 
   def produce_ref_result(self):
     # -------------------------
@@ -251,6 +260,7 @@ class linear_layer_driver(FlexASRBaseDriver):
     
   def produce_linear_layer_test(self, write_only=False):
     self.produce_random_test_data()
+    self.collect_data()
     self.produce_ref_result()
     self.produce_ly_data_lib()
     self.produce_ly_asm(write_only)

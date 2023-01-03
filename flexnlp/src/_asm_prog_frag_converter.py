@@ -26,7 +26,7 @@ class asm_prog_frag_converter:
     asm_types += ['start']
     # wait for interrupt signal added for simulation
     asm_types += ['wait_irq']
-      
+    
     assert asm['name'] in asm_types, \
       "'" + asm['name'] + "' is not a supported flexnlp-ila assembly"
 

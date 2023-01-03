@@ -296,6 +296,34 @@ class tool:
 
     return np.fromfile(out_path, sep='\n').astype(dtype)
   
+  def collect_axi_out_new(self, in_path, out_path, mem_base, num_ts, num_vo, bias):
+    """
+    convert the axi read return to floating point data
+    """
+    with open(in_path, 'r') as fin:
+      v_data = json.load(fin)
+    data_list = []
+
+    for ts_idx in range(num_ts):
+      for v_idx in range(num_vo):
+        addr = (
+          FLEXNLP_GB_LARGE_BUF_BASE + 
+          mem_base + 
+          self.get_gb_large_addr_offset(ts_idx, num_vo, v_idx)
+        )
+        addr_str = '0x{:08X}'.format(addr)
+        data_str = v_data[addr_str][2:]
+        assert len(data_str) == 32, "wrong length for ILA simulator return result"
+        for b_idx in range(16):
+          data_list.append('0x{}\n'.format(data_str[30-2*b_idx:32-2*b_idx]))
+  
+    with open('./test/ila_result.tmp', 'w') as fout:
+      fout.writelines(data_list)
+
+    self.call_adpt_float_cvtr('./test/ila_result.tmp', bias, out_path)
+
+    return np.fromfile(out_path, sep='\n').astype("float32")
+
   def axi_out_to_float_fpga(self, in_path, out_path, mem_idx, num_ts, num_vi, num_vo, bias,
                             base_addr='0xa0500000'):
     """

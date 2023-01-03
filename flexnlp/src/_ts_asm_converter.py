@@ -44,6 +44,9 @@ class ts_asm_converter:
     out += self.__FLEXNLP_GB_LARGE_BUF_BASE
     out += self.__gb_large_buf_mem_base[mem_idx]
     return out
+  
+  def set_gb_large_buf_mem_base(self, mem_idx, base_addr):
+    self.__gb_large_buf_mem_base[mem_idx] = base_addr
 
   def get_pe_hidden_wgt_offset(self, num_v_in, num_v_out):
     # return the offset address for hidden weight matrix in PE
@@ -143,8 +146,8 @@ class ts_asm_converter:
   # ------------------------------------------
   # Load/Store instructions
   # ------------------------------------------
-  def gen_store_act(self, asm):
-    # format: store_act [timestep_idx], [idx], [mem_idx] (optional)
+  def gen_store_act(self, asm, addr_offset = 0):
+    # format: store_act [timestep_idx], [idx], [mem_idx] (optional), [base_addr] (optional)
     # timestep_idx: index of the tensor place holder
     # idx: timestep index in the flexnlp GB large buffer
     # description: 
@@ -161,7 +164,7 @@ class ts_asm_converter:
 
     for v in range(num_vector_in):
       v_name = tensor_idx + '.' + str(v)
-      addr = hex(self.get_gb_large_abs_addr(mem_idx, idx, num_vector_in, v))
+      addr = hex(self.get_gb_large_abs_addr(mem_idx, idx, num_vector_in, v) + addr_offset)
       ret.append({
         'name' : 'write_v',
         'vector_name' : v_name,
