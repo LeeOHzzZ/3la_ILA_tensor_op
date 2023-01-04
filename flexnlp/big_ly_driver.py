@@ -91,14 +91,17 @@ class FlexASRLinearLayerDriver(linear_layer_driver):
     def produce_prog_frag(self, write_only=False):
         ila_cvtr = asm_cvtr([], self.data_lib)
         asm = []
+        # need to manually set the gb large memory base addrs
+        ila_cvtr.set_gb_large_buf_mem_base(0, self.gb_inp_addr)
+        ila_cvtr.set_gb_large_buf_mem_base(1, self.gb_out_addr)
         # generate memory write instructions
         if self.wgt_wr:
             unit_asm = {"wgt_idx": "w0"}
             asm += ila_cvtr.gen_store_wgt(unit_asm, addr_offset=self.pe_wgt_addr)
         if self.inp_wr:
             for i in range(self.num_ts):
-                unit_asm = {"timestep_idx": f"ts_{i}", "idx": i}
-                asm += ila_cvtr.gen_store_act(unit_asm, addr_offset=self.gb_inp_addr)
+                unit_asm = {"timestep_idx": f"ts_{i}", "idx": i, "mem_idx": 0}
+                asm += ila_cvtr.gen_store_act(unit_asm)
 
         # configuring the linear layer operation
         #   configuring PEs
@@ -165,9 +168,6 @@ class FlexASRLinearLayerDriver(linear_layer_driver):
                 "num_v_1": self.num_v_out,
             }
         )
-        # need to manually set the gb large memory base addrs
-        ila_cvtr.set_gb_large_buf_mem_base(0, self.gb_inp_addr)
-        ila_cvtr.set_gb_large_buf_mem_base(1, self.gb_out_addr)
         asm.append(
             {
                 "name": "cfg_gb_ctrl",
@@ -261,19 +261,11 @@ class FlexASRLinearLayerScheduler:
     and generate the corresponding code for each FlexASR ilator invocations and collect
     the final results
     """
-
-    FLEXNLP_VECTOR_SIZE = 16
-    FLEXNLP_GBCORE_NUM_BANKS = 16
-    FLEXNLP_ADDR_BASE = 0x33000000
-    FLEXNLP_PE_PARTITION_OFFSET = 0x01000000
-    FLEXNLP_PE_ACT_BUF_BASE = 0x00900000
-    FLEXNLP_PE_ACT_BUF_BOUND = 0x009001F0
-    FLEXNLP_GB_LARGE_BUF_BASE = FLEXNLP_ADDR_BASE + 0x00500000
-    FLEXNLP_GB_SMALL_BUF_BASE = FLEXNLP_ADDR_BASE + 0x00600000
-
+    # We can actually set the value here to be smaller than the FlexASR original spec
+    # for faster simulation to test the schedule
     NUM_PE = 4  # 4 PE in FlexASR
-    GBCORE_LARGE_BUF_SIZE = 0x100000  # 1MB
-    PECORE_LARGE_BUF_SIZE = 0x100000  # 1MB per PE
+    GBCORE_LARGE_BUF_SIZE = 0x10000  # 1MB -> 64KB
+    PECORE_LARGE_BUF_SIZE = 0x10000  # 1MB per PE -> 64KB
     # related dims to different value
     WGT_DIMS = ("x", "y")
     INP_DIMS = ("t", "x")
@@ -613,15 +605,19 @@ def cal_single_tensor_error(result, ref):
     return rmm
 
 def test_scheduler():
-    dim_t = 16
-    dim_x = 16
-    dim_y = 64
+    dim_t = 256
+    dim_x = 768
+    dim_y = 768
+    tile_t = 16
+    tile_x = 768
+    tile_y = 256
+    loop_order = "xyt"
 
     wgt_shape = (dim_y, dim_x)
     inp_shape = (dim_t, dim_x)
 
     layer_info = (dim_t, dim_x, dim_y)
-    schedule = ("txy", 16, 16, 64)
+    schedule = (loop_order, tile_t, tile_x, tile_y)
     test_driver = FlexASRLinearLayerScheduler(layer_info, schedule)
 
     test_wgt = 0.25 * np.random.uniform(-1, 1, wgt_shape).astype("float32")
@@ -629,10 +625,7 @@ def test_scheduler():
 
     res = test_driver.run(test_wgt, test_inp)
     ref = np.matmul(test_inp, np.transpose(test_wgt))
-    print(ref, np.max(ref), np.min(ref))
-    print(res)
 
     print("mismatch: ", cal_single_tensor_error(res, ref))
-
 
 test_scheduler()
