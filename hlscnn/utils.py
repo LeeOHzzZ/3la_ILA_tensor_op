@@ -17,7 +17,6 @@ class LoopCounter():
         self.__counter = [0] * N
         self.__max_value = tuple(loopbounds)
         self.__strides = tuple([reduce(mul, loopbounds[i+1:]) for i in range(N-1)] + [1])
-        print(self.__strides)
 
     @property
     def value(self):
