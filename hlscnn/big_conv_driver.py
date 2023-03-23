@@ -149,10 +149,10 @@ class Conv2DScheduler:
             mul, (self.num_tc, self.num_tk, self.num_th, self.num_tw)
         )
         # self.loop_bounds = tuple(self.tnum_dict[i] for i in self.loop_order)
-        assert self.num_tc == self._get_dim_num("c")
-        assert self.num_tk == self._get_dim_num("k")
-        assert self.num_th == self._get_dim_num("h")
-        assert self.num_tw == self._get_dim_num("w")
+        assert self.num_tc <= self._get_dim_num("c")
+        assert self.num_tk <= self._get_dim_num("k")
+        assert self.num_th <= self._get_dim_num("h")
+        assert self.num_tw <= self._get_dim_num("w")
         print(f"In total, it needs {self.total_invokes} HLSCNN invocations!")
 
         # # do not support spatial tiling for now
@@ -203,8 +203,9 @@ class Conv2DScheduler:
         t_wgt_log = []
         t_act_log = []
 
+        total_iters = reduce(mul, self.loop_bounds)
         cntr = LoopCounter(len(self.loop_bounds), self.loop_bounds)
-        for i in range(self.total_invokes):
+        for i in range(total_iters):
             t_wgt_id = self._get_tile_encode(self.WGT_DIMS, cntr.value)
             if t_wgt_id not in t_wgt_log:
                 t_wgt_log.append(t_wgt_id)
@@ -217,8 +218,8 @@ class Conv2DScheduler:
             cntr.increment()
 
         assert sum(cntr.value) == 0
-        assert len(t_wgt_seq) == self.total_invokes
-        assert len(t_act_seq) == self.total_invokes
+        assert len(t_wgt_seq) == total_iters
+        assert len(t_act_seq) == total_iters
 
         return t_wgt_log, t_wgt_seq, t_act_log, t_act_seq
 
@@ -402,13 +403,24 @@ class Conv2DScheduler:
             ## start the hlscnn-ilator systemc simulation
             self.start_simulator()
 
-        for _ in range(self.total_invokes):
+        for _ in range(reduce(mul, self.loop_bounds)):
             th_idx = self.get_dim_tile_idx("h", cntr.value, stride_code)
             tw_idx = self.get_dim_tile_idx("w", cntr.value, stride_code)
             tc_idx = self.get_dim_tile_idx("c", cntr.value, stride_code)
             tk_idx = self.get_dim_tile_idx("k", cntr.value, stride_code)
 
             print("current cntr:", cntr.cntr)
+
+            if (
+                (th_idx >= self.num_th)
+                or (tw_idx >= self.num_tw)
+                or (tc_idx >= self.num_tc)
+                or (tk_idx >= self.num_tk)
+            ):
+                cntr.increment()
+                print("skipping iteration due to idx overflow")
+                continue
+
 
             # get the data tile indices
             t_wgt_id = t_wgt_log.index(self._get_tile_encode(self.WGT_DIMS, cntr.value))
@@ -527,10 +539,10 @@ def cal_single_tensor_error(result, ref):
 
 
 def test():
-    in_chans = 32
-    out_chans = 8
-    in_h = 18
-    in_w = 18
+    in_chans = 16
+    out_chans = 16
+    in_h = 16
+    in_w = 16
     k_h = 3
     k_w = 3
     stride = 1
@@ -538,16 +550,20 @@ def test():
 
     wgt_shape = (out_chans, in_chans, k_h, k_w)
     inp_shape = (1, in_chans, in_h, in_w)
-    test_wgt = 0.5 * np.random.uniform(-1, 1, wgt_shape).astype("float32")
-    test_inp = 0.5 * np.random.uniform(-1, 1, inp_shape).astype("float32")
+    test_wgt = 0.25 * np.random.uniform(-1, 1, wgt_shape).astype("float32")
+    test_inp = 0.25 * np.random.uniform(-1, 1, inp_shape).astype("float32")
 
     layer_info = (in_chans, out_chans, in_h, in_w, k_h, k_w, stride, padding)
-    tc = 8
-    tk = 8
-    th = 16
-    tw = 16
-    loopOrder = "chwkc"
-    loopBound = (2, 1, 1, 1, 2)
+    tc = 16
+    tk = 16
+    th = 14
+    tw = 14
+    # loopOrder =   ('w', 'h', 'w', 'k', 'h', 'k', 'c', 'c')
+    # loopBound = [1, 1, 2, 1, 1, 16, 1, 16]
+    # loopOrder = "whkc"
+    # loopBound = (1, 2, 1, 4)
+    loopOrder = "whkc"
+    loopBound = (1, 1, 1, 1)
     test_driver = Conv2DScheduler(layer_info, (loopOrder, loopBound, tc, tk, th, tw))
     res = test_driver.run(test_wgt, test_inp, mem_sim_only=False)
 
@@ -592,5 +608,8 @@ def mem_sim_test():
 
 
 if __name__ == "__main__":
-    # test()
-    mem_sim_test()
+    # set environment variables
+    os.environ["HLSCNN_USE_16_WGT"] = "1"
+    # os.environ["HLSCNN_FOR_MOBILENET"] = "1"
+    test()
+    # mem_sim_test()
