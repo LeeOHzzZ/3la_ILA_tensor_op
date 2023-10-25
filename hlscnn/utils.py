@@ -58,4 +58,19 @@ class LoopCounter():
     def increment(self):
         self.__cntr += 1
         return self.__increment_ith(self.N-1)
-        
+
+
+import numpy as np
+
+def float_to_fixed_point(data, total_bits, int_bits):
+    max_val = 2 ** (int_bits - 1)
+    min_val = -2 ** (int_bits - 1)
+    frac_bits = total_bits - int_bits - 1
+
+    step_size = 2 ** (-frac_bits)
+
+    # Scale data and clamp to valid range
+    data_fixed_point = np.round(data / step_size) * step_size
+    data_fixed_point = np.clip(data_fixed_point, min_val, max_val)
+
+    return data_fixed_point.astype("float32")

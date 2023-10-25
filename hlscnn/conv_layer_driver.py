@@ -4,7 +4,7 @@ python driver for hlscnn-ila simulator
 
 import json
 import sys
-from typing_extensions import OrderedDict
+# from typing_extensions import OrderedDict
 import numpy as np
 import subprocess
 import os

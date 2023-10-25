@@ -8,7 +8,7 @@ from operator import mul
 from functools import reduce
 import numpy as np
 from conv_layer_driver import conv_layer_driver
-from utils import LoopCounter
+from utils import LoopCounter, float_to_fixed_point
 
 import tvm
 from tvm import relay, runtime
@@ -539,10 +539,10 @@ def cal_single_tensor_error(result, ref):
 
 
 def test():
-    in_chans = 16
-    out_chans = 16
-    in_h = 16
-    in_w = 16
+    in_chans = 32
+    out_chans = 32
+    in_h = 32
+    in_w = 32
     k_h = 3
     k_w = 3
     stride = 1
@@ -550,22 +550,27 @@ def test():
 
     wgt_shape = (out_chans, in_chans, k_h, k_w)
     inp_shape = (1, in_chans, in_h, in_w)
-    test_wgt = 0.25 * np.random.uniform(-1, 1, wgt_shape).astype("float32")
-    test_inp = 0.25 * np.random.uniform(-1, 1, inp_shape).astype("float32")
+    test_wgt = 0.5 * np.random.uniform(-1, 1, wgt_shape).astype("float32")
+    test_inp = 0.5 * np.random.uniform(-1, 1, inp_shape).astype("float32")
+
+    test_wgt_q = float_to_fixed_point(test_wgt, 16, 3)
+    test_inp_q = float_to_fixed_point(test_inp, 16, 3)
+
+    print(f"{cal_single_tensor_error(test_wgt, test_wgt_q):.5%}")
 
     layer_info = (in_chans, out_chans, in_h, in_w, k_h, k_w, stride, padding)
     tc = 16
     tk = 16
-    th = 14
-    tw = 14
+    th = 15
+    tw = 15
     # loopOrder =   ('w', 'h', 'w', 'k', 'h', 'k', 'c', 'c')
     # loopBound = [1, 1, 2, 1, 1, 16, 1, 16]
     # loopOrder = "whkc"
     # loopBound = (1, 2, 1, 4)
     loopOrder = "whkc"
-    loopBound = (1, 1, 1, 1)
+    loopBound = (2, 2, 2, 2)
     test_driver = Conv2DScheduler(layer_info, (loopOrder, loopBound, tc, tk, th, tw))
-    res = test_driver.run(test_wgt, test_inp, mem_sim_only=False)
+    res = test_driver.run(test_wgt_q, test_inp_q, mem_sim_only=False)
 
     x = relay.Var("x", relay.TensorType(inp_shape))
     y = relay.Var("y", relay.TensorType(wgt_shape))
@@ -575,7 +580,7 @@ def test():
     with tvm.transform.PassContext():
         exe = relay.vm.compile(mod, "llvm")
         vm = runtime.vm.VirtualMachine(exe, tvm.cpu())
-        args = [test_inp, test_wgt]
+        args = [test_inp_q, test_wgt_q]
         ret = vm.invoke("main", *args).asnumpy()
 
     print(f"{cal_single_tensor_error(res, ret):.5%}")
@@ -610,6 +615,6 @@ def mem_sim_test():
 if __name__ == "__main__":
     # set environment variables
     os.environ["HLSCNN_USE_16_WGT"] = "1"
-    # os.environ["HLSCNN_FOR_MOBILENET"] = "1"
+    os.environ["HLSCNN_FOR_MOBILENET"] = "1"
     test()
     # mem_sim_test()

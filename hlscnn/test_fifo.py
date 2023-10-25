@@ -1,5 +1,6 @@
 import os
 import errno
+import posix
 
 SERVER_FIFO = "/home/yl29/tmp/hlscnn_ilator_server"
 CLIENT_FIFO = "/home/yl29/tmp/hlscnn_ilator_client"
@@ -17,7 +18,12 @@ while True:
     print("Opening Server FIFO...")
     # the open command will be blocked if the other end of the pipe is not opened!
     # this is different from the C++ implementation
-    server_fifo = open(SERVER_FIFO, "w")
+    # server_fifo = open(SERVER_FIFO, "w")
+    try:
+        server_fifo = posix.open(SERVER_FIFO, posix.O_WRONLY | posix.O_NONBLOCK)
+    except OSError as ex:
+        if ex.errno == errno.ENXIO:
+            pass
     print("Server FIFO opened!")
 
     if cntr > 10:
