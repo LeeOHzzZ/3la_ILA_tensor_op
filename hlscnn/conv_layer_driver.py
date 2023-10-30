@@ -183,9 +183,9 @@ class conv_layer_driver:
     self.ila_asm = {'asm' : self.ila_asm}
     
     with open('./test/conv_ila_asm.json', 'w') as fout:
-      json.dump(self.ila_asm, fout, indent=2)
+      json.dump(self.ila_asm, fout, indent=0)
     with open('./test/conv_ila_data_lib.json', 'w') as fout:
-      json.dump(self.data_lib, fout, indent=2)
+      json.dump(self.data_lib, fout, indent=0)
 
   def collect_data_in(self):
     """
@@ -194,7 +194,17 @@ class conv_layer_driver:
     print('\n--------------------------------------------------------------')
     print('\tcollecting input data')
     print('--------------------------------------------------------------\n')
-    if os.getenv("HLSCNN_FOR_MOBILENET") is not None:
+    if os.getenv("HLSCNN_FOR_MOBILENET_IMAGENET") is not None:
+      print(f"[HLSCNN] packing data for MobileNetV2 with ImageNet dataset")
+      assert self.wgt_bitwidth == 16, "HLSCNN_USE_16_WGT not set yet"
+      cmd = [
+        'hlscnn_pack_data_mobilenet_imagenet',
+        str(self.inp_rows), str(self.inp_cols), str(self.inp_chans),
+        str(self.kernel_rows), str(self.kernel_cols), str(self.k_num),
+        str(self.wgt_bitwidth)
+      ]
+      
+    elif os.getenv("HLSCNN_FOR_MOBILENET") is not None:
       # special debugging for mobilenet
       print(f"[HLSCNN] packing data for HLSCNN specially for MobileNetV2")
       assert self.wgt_bitwidth == 16, "HLSCNN_USE_16_WGT not set yet"
@@ -233,7 +243,15 @@ class conv_layer_driver:
     print('\tinvoking ILA simulator')
     print('--------------------------------------------------------------\n')
     # measure the time of ila simulation
-    if os.getenv("HLSCNN_FOR_MOBILENET") is not None:
+    if os.getenv("HLSCNN_FOR_MOBILENET_IMAGENET") is not None:
+      print(f"[HLSCNN] special HLSCNN simulator for MobileNetV2 imagenet")
+      cmd = [
+        "hlscnn_asm_sim_driver_mobilenet_imagenet", 
+        "./test/conv_ila_prog_frag.json",
+        "./test/conv_ila_out.json",
+      ]
+
+    elif os.getenv("HLSCNN_FOR_MOBILENET") is not None:
       # special debugging for mobilenet
       print(f"[HLSCNN] special HLSCNN simulator for MobileNetV2")
       cmd = [
@@ -241,6 +259,7 @@ class conv_layer_driver:
         "./test/conv_ila_prog_frag.json",
         "./test/conv_ila_out.json",
       ]
+
     else:
       if self.wgt_bitwidth == 8:
         print(f"[HLSCNN] using {self.wgt_bitwidth}-bit weights")
