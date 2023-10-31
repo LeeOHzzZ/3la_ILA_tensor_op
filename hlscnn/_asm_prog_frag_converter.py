@@ -258,7 +258,7 @@ class asm_prog_frag_converter:
     is_wb = asm['is_wb']
     data = hex(int(
       self.__gen_binary_string(is_wb, 1)
-      + self.__gen_binary_string(kernel_num, 8)
+      + self.__gen_binary_string(kernel_num, 12)
       + self.__gen_binary_string(is_accum, 1)
       + self.__gen_binary_string(is_relu, 1)
       + self.__gen_binary_string(is_bias, 1)
