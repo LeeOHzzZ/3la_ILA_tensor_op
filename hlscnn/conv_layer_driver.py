@@ -313,9 +313,9 @@ class conv_layer_driver:
     # for per-layer debugging
     if os.getenv("TVM_3LA_DIFF_DEBUG") is not None:
       if self.ref_run:
-        self.collect_imm_result("3la_layer_ref_imm_results.json", res)
+        self.collect_imm_result(f"./diff_debug/ref", res)
       else:
-        self.collect_imm_result("3la_layer_imm_results.json", res)
+        self.collect_imm_result(f"./diff_debug/hlscnn", res)
 
 
   def produce_ref_results(self):
@@ -350,10 +350,10 @@ class conv_layer_driver:
     collect intermediate results for per layer analysis
     """
     if not os.path.exists(fname):
-      json.dump({}, open(fname, "w"))
+      os.makedirs(fname)
+    fname = os.path.join(fname, f"{self.op_name}.json")
     tensor_in = np.fromfile("./data/inp.txt", sep='\n')
-    imm_result_tb = json.load(open(fname, "r"))
-    imm_result_tb[self.op_name] = {
+    imm_result_tb = {
       "in" : tensor_in.tolist(),
       "out" : out,
     }
